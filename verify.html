@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AUTHENTIX SIGN — Vérification de document</title>
+  <meta name="description" content="Vérifiez l'authenticité d'un document signé. 100% côté client — aucun fichier n'est envoyé à un serveur." />
+  <style>
+    :root {
+      --bg: #0c0c0f;
+      --card: #14141a;
+      --fg: #f0ece4;
+      --dim: #a0a0a0;
+      --gold: #c9a84c;
+      --green: #22c55e;
+      --red: #e24b4a;
+      --border: #2a2a33;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    header {
+      text-align: center;
+      padding: 16px 0 24px;
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      border: 2px solid var(--gold);
+      border-radius: 14px;
+    }
+    h1 {
+      color: var(--gold);
+      font-size: 26px;
+      margin: 12px 0 4px;
+      letter-spacing: 1px;
+    }
+    .subtitle {
+      color: var(--dim);
+      font-size: 13px;
+      margin: 0;
+    }
+    .tagline {
+      color: var(--gold);
+      font-size: 20px;
+      line-height: 1.5;
+      margin: 16px 0 0;
+      font-weight: 600;
+    }
+    .notice {
+      background: #0e1a12;
+      border: 1px solid #1f3a25;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 20px 0 24px;
+      color: var(--green);
+      font-size: 12px;
+      text-align: center;
+    }
+    section.card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+    .field {
+      margin-bottom: 16px;
+    }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      color: var(--dim);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .file-input {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #0a0a0f;
+    }
+    .file-input input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .file-input .name {
+      flex: 1;
+      color: var(--fg);
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-input .placeholder { color: var(--dim); }
+    .file-input .pick {
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    button.gold {
+      display: block;
+      width: 100%;
+      background: var(--gold);
+      color: var(--bg);
+      border: 0;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button.gold:disabled {
+      background: #2a2a2a;
+      color: #5a5650;
+      cursor: not-allowed;
+    }
+    button.outline {
+      display: block;
+      width: 100%;
+      background: transparent;
+      color: var(--gold);
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .result {
+      background: #0e1a12;
+      border: 1px solid #1f3a25;
+    }
+    .result.fail {
+      background: #1a0d0d;
+      border-color: #3a1f1f;
+    }
+    .result h2 {
+      margin: 0 0 12px;
+      color: var(--green);
+      font-size: 18px;
+    }
+    .result.fail h2 { color: var(--red); }
+    .result ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 12px;
+    }
+    .result li {
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .result li:last-child { border-bottom: 0; }
+    .result li .k { color: var(--dim); }
+    .result li .v { color: var(--fg); text-align: right; word-break: break-all; }
+    .result li .ok { color: var(--green); }
+    .result li .ko { color: var(--red); }
+    .mono { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
+    .hint {
+      color: var(--dim);
+      font-size: 11px;
+      margin-top: 6px;
+    }
+    .error {
+      color: var(--red);
+      font-size: 13px;
+      padding: 10px 14px;
+      background: #1a0d0d;
+      border: 1px solid #3a1f1f;
+      border-radius: 8px;
+      margin-top: 14px;
+    }
+    footer {
+      text-align: center;
+      color: var(--dim);
+      font-size: 11px;
+      margin-top: 32px;
+    }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div class="logo"><svg viewBox="18 18 72 72" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/></svg></div>
+      <h1>AUTHENTIX SIGN</h1>
+      <p class="tagline">La seule signature numérique<br>mathématiquement incontestable<br>et inaliénable.<br>Sans tiers de confiance.</p>
+      <p class="subtitle" style="margin-top:16px;">Vérification de document</p>
+    </header>
+
+    <div class="notice">
+      🔒 Tous les calculs s'exécutent dans votre navigateur. Aucun fichier n'est envoyé.
+    </div>
+
+    <section class="card">
+      <div class="field">
+        <label>1. Document original</label>
+        <div class="file-input">
+          <input type="file" id="fileDoc" />
+          <span class="name placeholder" id="nameDoc">Choisir le fichier…</span>
+          <span class="pick">PARCOURIR</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>2. Certificat (.cert.json)</label>
+        <div class="file-input">
+          <input type="file" id="fileCert" accept=".json,application/json" />
+          <span class="name placeholder" id="nameCert">Choisir le fichier…</span>
+          <span class="pick">PARCOURIR</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>3. Journal (optionnel)</label>
+        <div class="file-input">
+          <input type="file" id="fileJournal" accept=".json,application/json" />
+          <span class="name placeholder" id="nameJournal">Choisir le fichier…</span>
+          <span class="pick">PARCOURIR</span>
+        </div>
+        <p class="hint">Active la vérification de cohérence τ et de l'intégrité de chaîne.</p>
+      </div>
+
+      <button class="gold" id="btnVerify" disabled>VÉRIFIER</button>
+    </section>
+
+    <div id="errorBox"></div>
+    <section class="card result" id="resultCard" style="display:none;"></section>
+    <button class="outline" id="btnPdf" style="display:none;">TÉLÉCHARGER RAPPORT PDF</button>
+
+    <footer>
+      Vérifié par <strong>AUTHENTIX SIGN</strong> · <a href="https://authentix-sign.tech">authentix-sign.tech</a>
+    </footer>
+  </div>
+
+  <!-- SHA3-256 via js-sha3 (UMD global `sha3_256`) -->
+  <script src="https://cdn.jsdelivr.net/npm/js-sha3@0.9.3/build/sha3.min.js"></script>
+  <!-- Ed25519 via tweetnacl (UMD global `nacl`) — équivalent noble-ed25519, UMD-compatible -->
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"></script>
+  <!-- jsPDF (UMD global `window.jspdf.jsPDF`) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+
+  <script>
+  (function () {
+    "use strict";
+
+    // ── State ─────────────────────────────────────────────────────────────
+    const state = {
+      docBytes: null,
+      docName: "",
+      certJson: null,
+      certText: "",
+      journalJson: null,
+      journalText: "",
+      lastReport: null,
+    };
+
+    // ── DOM ───────────────────────────────────────────────────────────────
+    const $ = (id) => document.getElementById(id);
+    const fileDoc = $("fileDoc");
+    const fileCert = $("fileCert");
+    const fileJournal = $("fileJournal");
+    const nameDoc = $("nameDoc");
+    const nameCert = $("nameCert");
+    const nameJournal = $("nameJournal");
+    const btnVerify = $("btnVerify");
+    const btnPdf = $("btnPdf");
+    const resultCard = $("resultCard");
+    const errorBox = $("errorBox");
+
+    // ── File inputs ───────────────────────────────────────────────────────
+    fileDoc.addEventListener("change", async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      state.docBytes = new Uint8Array(await f.arrayBuffer());
+      state.docName = f.name;
+      nameDoc.textContent = f.name;
+      nameDoc.classList.remove("placeholder");
+      updateButton();
+    });
+
+    fileCert.addEventListener("change", async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      state.certText = await f.text();
+      try {
+        state.certJson = JSON.parse(state.certText);
+      } catch (_) {
+        showError("Le certificat n'est pas un JSON valide.");
+        state.certJson = null;
+      }
+      nameCert.textContent = f.name;
+      nameCert.classList.remove("placeholder");
+      updateButton();
+    });
+
+    fileJournal.addEventListener("change", async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      state.journalText = await f.text();
+      try {
+        state.journalJson = JSON.parse(state.journalText);
+      } catch (_) {
+        showError("Le journal n'est pas un JSON valide.");
+        state.journalJson = null;
+      }
+      nameJournal.textContent = f.name;
+      nameJournal.classList.remove("placeholder");
+    });
+
+    function updateButton() {
+      btnVerify.disabled = !(state.docBytes && state.certJson);
+    }
+
+    btnVerify.addEventListener("click", runVerification);
+
+    btnPdf.addEventListener("click", () => {
+      if (state.lastReport) generatePdf(state.lastReport);
+    });
+
+    // ── Verification core ─────────────────────────────────────────────────
+
+    async function runVerification() {
+      clearError();
+      resultCard.style.display = "none";
+      btnPdf.style.display = "none";
+
+      const cert = state.certJson;
+      const doc = state.docBytes;
+
+      // (1) SHA3-256(document)
+      const docHashHex = sha3_256(doc);
+      const hashOk = docHashHex.toLowerCase() === (cert.document_hash || "").toLowerCase();
+
+      // (2) Ed25519 — verify block signature
+      let sigOk = false;
+      let sigError = null;
+      try {
+        const payload = buildBlockSigningPayload(cert);
+        const pubkey = hexToBytes(cert.device_pubkey);
+        const signature = hexToBytes(cert.block_signature);
+        if (pubkey.length !== 32) throw new Error("device_pubkey n'est pas 32 octets");
+        if (signature.length !== 64) throw new Error("block_signature n'est pas 64 octets");
+        sigOk = nacl.sign.detached.verify(payload, signature, pubkey);
+      } catch (e) {
+        sigError = e.message;
+      }
+
+      // (3) Journal integrity — optional
+      let journalChainOk = null;
+      let tauCoherenceOk = null;
+      if (state.journalJson) {
+        journalChainOk = verifyJournalChain(state.journalJson);
+        tauCoherenceOk = verifyTauCoherence(state.journalJson, cert);
+      }
+
+      const report = {
+        verifiedAt: new Date().toISOString(),
+        documentName: state.docName,
+        hashOk,
+        sigOk,
+        sigError,
+        journalChainOk,
+        tauCoherenceOk,
+        cert,
+      };
+      state.lastReport = report;
+      renderResult(report);
+    }
+
+    // Reconstruction exacte du payload signé par CertificateV2.blockSigningPayload()
+    // côté Android. Tout écart casse la signature — ne pas modifier sans
+    // aligner le Kotlin.
+    function buildBlockSigningPayload(cert) {
+      const NUL = "\u0000";
+      const parts = [];
+      parts.push("AUTHENTIX-SIGN-V1" + NUL);
+      parts.push((cert.document_name || "") + NUL);
+      parts.push((cert.document_hash || "") + NUL);
+      parts.push((cert.device_pubkey || "") + NUL);
+      const att = cert.device_attestation || {};
+      parts.push((att.model || "") + NUL);
+      parts.push((att.manufacturer || "") + NUL);
+      parts.push(String(att.android_api || 0) + NUL);
+      parts.push((att.integrity_verdict || "") + NUL);
+      const bio = cert.biometric_proof || {};
+      parts.push((bio.method || "") + NUL);
+      parts.push((bio.authenticator_type || "") + NUL);
+      parts.push(String(!!bio.crypto_object_used) + NUL);
+      parts.push((bio.timestamp || "") + NUL);
+      parts.push(String(cert.tau || 0) + NUL);
+      parts.push((cert.document_opened_at || "") + NUL);
+      parts.push((cert.cert_produced_at || "") + NUL);
+      parts.push(String(cert.certificate_exported_at || 0) + NUL);
+      if (Array.isArray(cert.keystore_attestation)) {
+        for (const h of cert.keystore_attestation) parts.push(h + NUL);
+      }
+      return new TextEncoder().encode(parts.join(""));
+    }
+
+    // Parcourt la chaîne entry.prev_hash == previous.entry_hash, à partir
+    // de "GENESIS". Réplique exactement VCH.verify() côté Android.
+    function verifyJournalChain(journal) {
+      const entries = journal.entries || [];
+      if (entries.length === 0) return true;
+      let expectedPrev = "GENESIS";
+      for (const e of entries) {
+        if ((e.prev_hash || "") !== expectedPrev) return false;
+        expectedPrev = e.entry_hash || "";
+      }
+      return true;
+    }
+
+    // Cherche dans le journal une entrée dont {document_hash, tau} matche
+    // le certificat — prouve que le certificat a bien été enregistré dans
+    // le journal du dispositif.
+    function verifyTauCoherence(journal, cert) {
+      const entries = journal.entries || [];
+      const dh = (cert.document_hash || "").toLowerCase();
+      const tau = Number(cert.tau || 0);
+      return entries.some(
+        (e) => (e.document_hash || "").toLowerCase() === dh && Number(e.tau) === tau
+      );
+    }
+
+    // ── Result rendering ──────────────────────────────────────────────────
+
+    function renderResult(r) {
+      const allCriticalOk = r.hashOk && r.sigOk;
+      resultCard.className = "card result" + (allCriticalOk ? "" : " fail");
+      resultCard.style.display = "block";
+
+      const rows = [];
+      rows.push(row("Document intact", r.hashOk));
+      rows.push(row("Certificat authentique", r.sigOk, r.sigError));
+
+      const att = r.cert.device_attestation || {};
+      const bio = r.cert.biometric_proof || {};
+      const deviceLabel = (att.manufacturer || "") + " " + (att.model || "");
+      rows.push(kv("Appareil", deviceLabel.trim() || "—"));
+
+      const bioLabel = bio.crypto_object_used
+        ? (bio.method === "FINGERPRINT" ? "Empreinte ✓" : (bio.method || "Vérifiée") + " ✓")
+        : "⚠ non vérifiée";
+      rows.push(kv("Biométrie", bioLabel));
+      rows.push(kv("Compteur τ", "#" + (r.cert.tau ?? "?")));
+
+      if (r.journalChainOk !== null) {
+        rows.push(row("Chaîne journal intègre", r.journalChainOk));
+        rows.push(row("Cohérence τ (cert ↔ journal)", r.tauCoherenceOk));
+      }
+
+      const openedAt = r.cert.document_opened_at || "";
+      const fingerAt = bio.timestamp || "";
+      const certAt   = r.cert.cert_produced_at || "";
+      rows.push(kv("Ouvert le", formatTimestamp(openedAt)));
+      rows.push(kv("Empreinte posée", formatTimestamp(fingerAt)));
+      rows.push(kv("Certificat produit", formatTimestamp(certAt || fingerAt)));
+      const readDuration = formatDuration(openedAt, fingerAt);
+      if (readDuration) rows.push(kv("Durée de lecture", readDuration));
+      if (openedAt) {
+        rows.push(row("H(doc) vérifié à l'ouverture", true));
+      }
+
+      resultCard.innerHTML =
+        "<h2>" + (allCriticalOk ? "Document vérifié ✅" : "Vérification échouée ❌") + "</h2>" +
+        "<ul>" + rows.join("") + "</ul>";
+
+      btnPdf.style.display = "block";
+    }
+
+    function row(label, ok, errorMsg) {
+      const mark = ok ? '<span class="ok">✓</span>' : '<span class="ko">✗</span>';
+      const tail = errorMsg ? ' <span class="k mono">' + escapeHtml(errorMsg) + "</span>" : "";
+      return '<li><span class="k">' + escapeHtml(label) + "</span><span class=\"v\">" + mark + tail + "</span></li>";
+    }
+    function kv(label, value) {
+      return '<li><span class="k">' + escapeHtml(label) + '</span><span class="v">' + escapeHtml(String(value)) + "</span></li>";
+    }
+
+    // ── PDF report ────────────────────────────────────────────────────────
+
+    function generatePdf(r) {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+
+      const W = pdf.internal.pageSize.getWidth();
+      const margin = 48;
+      let y = margin;
+
+      // Header — logo block
+      pdf.setFillColor("#c9a84c");
+      pdf.rect(margin, y, 48, 48, "F");
+      pdf.setTextColor("#0c0c0f");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(28);
+      pdf.text("A", margin + 16, y + 34);
+
+      pdf.setTextColor("#0c0c0f");
+      pdf.setFontSize(16);
+      pdf.text("Rapport de vérification AUTHENTIX SIGN", margin + 64, y + 28);
+      y += 80;
+
+      // Result banner
+      const ok = r.hashOk && r.sigOk;
+      pdf.setFillColor(ok ? "#0e1a12" : "#1a0d0d");
+      pdf.rect(margin, y, W - margin * 2, 42, "F");
+      pdf.setTextColor(ok ? "#22c55e" : "#e24b4a");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
+      pdf.text(ok ? "DOCUMENT VERIFIE" : "VERIFICATION ECHOUEE", margin + 14, y + 26);
+      y += 64;
+
+      // Fields
+      pdf.setTextColor("#0c0c0f");
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(11);
+
+      const att = r.cert.device_attestation || {};
+      const bio = r.cert.biometric_proof || {};
+      const lines = [
+        ["Document", r.documentName || "—"],
+        ["Hash SHA3-256", (r.cert.document_hash || "").slice(0, 48) + "…"],
+        ["Document intact", r.hashOk ? "OUI" : "NON"],
+        ["Signature Ed25519", r.sigOk ? "VALIDE" : "INVALIDE"],
+        ["Appareil", ((att.manufacturer || "") + " " + (att.model || "")).trim() || "—"],
+        ["Android API", String(att.android_api || "—")],
+        ["Intégrité dispositif", att.integrity_verdict || "—"],
+        ["Biométrie", bio.method || "—"],
+        ["Authentificateur", bio.authenticator_type || "—"],
+        ["CryptoObject", bio.crypto_object_used ? "OUI" : "NON"],
+        ["Compteur τ", "#" + (r.cert.tau ?? "?")],
+        ["Ouvert le", formatTimestamp(r.cert.document_opened_at)],
+        ["Empreinte posée", formatTimestamp(bio.timestamp)],
+        ["Certificat produit", formatTimestamp(r.cert.cert_produced_at || bio.timestamp)],
+        ["Certificat exporté", r.cert.certificate_exported_at ? "τ #" + r.cert.certificate_exported_at + " (informatif — non signé)" : "—"],
+        ["Durée de lecture", formatDuration(r.cert.document_opened_at, bio.timestamp) || "—"],
+      ];
+
+      if (r.journalChainOk !== null) {
+        lines.push(["Chaîne journal", r.journalChainOk ? "INTÈGRE" : "ROMPUE"]);
+        lines.push(["Cohérence τ", r.tauCoherenceOk ? "OUI" : "NON"]);
+      }
+
+      lines.push(["Vérifié le", formatTimestamp(r.verifiedAt)]);
+
+      for (const [label, value] of lines) {
+        pdf.setTextColor("#666");
+        pdf.text(label, margin, y);
+        pdf.setTextColor("#0c0c0f");
+        pdf.text(String(value), margin + 180, y);
+        y += 18;
+      }
+
+      // Footer
+      y = pdf.internal.pageSize.getHeight() - 48;
+      pdf.setDrawColor("#c9a84c");
+      pdf.line(margin, y, W - margin, y);
+      y += 18;
+      pdf.setFontSize(9);
+      pdf.setTextColor("#666");
+      pdf.text("Vérifié par AUTHENTIX SIGN — authentix-sign.tech", margin, y);
+      pdf.text("Hors ligne · sans serveur · sans tiers de confiance", margin, y + 12);
+
+      const fname = "authentix-sign-report-" + Date.now() + ".pdf";
+      pdf.save(fname);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    function hexToBytes(hex) {
+      if (typeof hex !== "string") return new Uint8Array(0);
+      hex = hex.trim();
+      if (hex.length % 2 !== 0) return new Uint8Array(0);
+      const out = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < out.length; i++) {
+        out[i] = parseInt(hex.substr(i * 2, 2), 16);
+      }
+      return out;
+    }
+
+    function formatTimestamp(iso) {
+      if (!iso) return "—";
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        return d.toLocaleString("fr-FR", {
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", second: "2-digit",
+        });
+      } catch (_) {
+        return iso;
+      }
+    }
+
+    function formatDuration(openedIso, signedIso) {
+      if (!openedIso || !signedIso) return "";
+      try {
+        const o = new Date(openedIso).getTime();
+        const s = new Date(signedIso).getTime();
+        if (isNaN(o) || isNaN(s) || s < o) return "";
+        const diff = Math.floor((s - o) / 1000);
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const sec = diff % 60;
+        if (h > 0) return h + " h " + m + " min " + sec + " sec";
+        if (m > 0) return m + " min " + sec + " sec";
+        return sec + " sec";
+      } catch (_) {
+        return "";
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function showError(msg) {
+      errorBox.innerHTML = '<div class="error">' + escapeHtml(msg) + "</div>";
+    }
+    function clearError() {
+      errorBox.innerHTML = "";
+    }
+  })();
+  </script>
+</body>
+</html>
