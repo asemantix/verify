@@ -270,6 +270,29 @@
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/js-sha3@0.9.3/src/sha3.min.js"></script>
+
+  <!-- Fix radical: force screenLogin à chaque chargement / restauration bfcache -->
+  <script>
+  (function() {
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.screen, .step').forEach(function(el) {
+        el.classList.remove('active');
+      });
+      var login = document.getElementById('screenLogin');
+      if (login) login.classList.add('active');
+      var step1 = document.getElementById('step1');
+      if (step1) step1.classList.add('active');
+    });
+    window.addEventListener('pageshow', function(e) {
+      if (!e.persisted) return;
+      document.querySelectorAll('.screen, .step').forEach(function(el) {
+        el.classList.remove('active');
+      });
+      var login = document.getElementById('screenLogin');
+      if (login) login.classList.add('active');
+    });
+  })();
+  </script>
 </head>
 <body>
   <div class="container">
@@ -283,7 +306,7 @@
     <!-- ════════════════════════════════════════════════════════════════ -->
     <!-- SCREEN: LOGIN                                                   -->
     <!-- ════════════════════════════════════════════════════════════════ -->
-    <div id="screenLogin" class="screen active">
+    <div id="screenLogin" class="screen">
       <div class="notice">
         Votre document est chiffré sur votre poste avant d'être envoyé.<br>
         Personne ne peut en lire le contenu — ni nos serveurs, ni aucun intermédiaire.
@@ -407,7 +430,7 @@
       </div>
 
       <!-- STEP 1: Invite recipient -->
-      <div id="step1" class="step active">
+      <div id="step1" class="step">
         <div class="tuto-card">
           <div class="tuto-head">
             <div class="step-num">1</div>
@@ -626,31 +649,16 @@
   import { sha256 } from 'https://cdn.jsdelivr.net/npm/@noble/hashes@1.4.0/sha256/+esm';
   import QRCode from 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm';
 
-  // ── Reset initial state IMMÉDIAT (avant tout autre code) ───────────
-  // Protection contre bfcache / état JS résiduel / cache agressif
-  function forceResetToLogin() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-    const login = document.getElementById('screenLogin');
-    const step1 = document.getElementById('step1');
-    if (login) login.classList.add('active');
-    if (step1) step1.classList.add('active');
-    // Cache tout overlay résiduel (tuto)
-    const tuto = document.getElementById('tutoOverlay');
-    if (tuto) tuto.classList.remove('active');
-  }
-  forceResetToLogin();
+  // Reset initial — géré par le <script> classique inline dans le <head>
+  // (force screenLogin + step1 via DOMContentLoaded et pageshow).
 
-  // Listener pageshow — déclenché aussi quand la page est restaurée
-  // depuis le bfcache (back/forward cache) sans recharger le JS
-  window.addEventListener('pageshow', (e) => {
-    if (e.persisted) {
-      // Page restaurée du bfcache — l'état JS (currentOrg, authToken…)
-      // est réhydraté par le navigateur mais peut être périmé. On force
-      // le login pour que l'utilisateur revalide sa session.
-      forceResetToLogin();
-    }
-  });
+  // ?fresh=1 — arrivée depuis un lien email (ex: confirmation compte).
+  // Purge la session + nettoie l'URL. Le reset d'écran est déjà fait par le IIFE inline.
+  const _freshParam = new URLSearchParams(window.location.search).get('fresh');
+  if (_freshParam) {
+    localStorage.removeItem('authentix_token');
+    history.replaceState({}, '', window.location.pathname);
+  }
 
   // ── HTTPS redirect ──────────────────────────────────────────────────
   if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
