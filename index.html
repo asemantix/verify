@@ -471,7 +471,7 @@
               <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h10M18 12v4M22 12v3"/></svg>
             </div>
             <h2>Saisir la clé publique</h2>
-            <p class="desc">Votre destinataire vous a envoyé sa clé publique (64 caractères). Collez-la ci-dessous — elle servira à chiffrer le document pour que lui seul puisse le lire.</p>
+            <p class="desc">Votre destinataire vous a envoyé sa clé publique par email depuis l'app AUTHENTIX SIGN. Collez-la ici.</p>
           </div>
 
           <div class="field">
@@ -884,8 +884,6 @@
   function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 
   document.getElementById('btnDashSend').addEventListener('click', () => {
-    stopKeyPolling();
-    currentKeyToken = null;
     hideInviteError(); hideInviteSuccess();
     showScreen('screenSend');
     showStep(1);
@@ -902,8 +900,6 @@
   });
   document.getElementById('btnDashContacts').addEventListener('click', () => { showContacts(); });
   document.getElementById('btnLogout').addEventListener('click', async () => {
-    stopKeyPolling();
-    currentKeyToken = null;
     try { await api('POST', '/auth/logout'); } catch {}
     authToken = null; currentOrg = null;
     localStorage.removeItem('authentix_token');
@@ -989,33 +985,6 @@
   function hideInviteSuccess() {
     document.getElementById('inviteSuccess').style.display = 'none';
   }
-  let keyPollTimer = null;
-  let currentKeyToken = null;
-
-  function stopKeyPolling() {
-    if (keyPollTimer) { clearInterval(keyPollTimer); keyPollTimer = null; }
-  }
-
-  async function pollKeyRequest() {
-    if (!currentKeyToken) return;
-    try {
-      const data = await api('GET', '/key-request/' + currentKeyToken);
-      if (data.status === 'received' && data.public_key) {
-        stopKeyPolling();
-        showInviteSuccess('🔑 Clé reçue ✅ — passage à l\'étape 2…');
-        // Pre-fill key & auto-advance to step 2
-        document.getElementById('pubkeyInput').value = data.public_key;
-        setTimeout(() => {
-          showStep(2);
-          validateStep2();
-        }, 900);
-      }
-    } catch (e) {
-      // Silent — transient network errors shouldn't break the flow
-      console.log('[poll] error:', e.message);
-    }
-  }
-
   document.getElementById('btnInvite').addEventListener('click', async () => {
     const rEmail = document.getElementById('recipientEmail').value.trim();
     const rName = document.getElementById('recipientName').value.trim();
@@ -1029,51 +998,37 @@
     }
     hideInviteError();
     hideInviteSuccess();
-    stopKeyPolling();
     const btn = document.getElementById('btnInvite');
     const originalLabel = btn.textContent;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Envoi en cours...';
     try {
-      // 1. Send invitation email AND 2. Create key-request in parallel
-      const [, keyReq] = await Promise.all([
-        api('POST', '/send-invite', { recipient_name: rName, recipient_email: rEmail }),
-        api('POST', '/key-request', { recipient_name: rName, recipient_email: rEmail }),
-      ]);
-      currentKeyToken = keyReq.token;
+      await api('POST', '/send-invite', { recipient_name: rName, recipient_email: rEmail });
       btn.textContent = originalLabel;
       // Button stays disabled to prevent double-send; confirmation shown below
-      showInviteSuccess('✅ Invitation envoyée à ' + rName + '. En attente de sa clé publique…');
-      // Start polling every 10s
-      pollKeyRequest();
-      keyPollTimer = setInterval(pollKeyRequest, 10000);
+      showInviteSuccess('✅ Invitation envoyée à ' + rName + '. Votre destinataire vous transmettra sa clé publique par email depuis son app AUTHENTIX SIGN.');
     } catch (e) {
       btn.disabled = false;
       btn.textContent = originalLabel;
       showInviteError('Échec de l\'envoi : ' + e.message);
     }
   });
-  // Hide error + success + stop polling + re-enable button as soon as user
-  // edits the fields (allows sending to a different recipient)
+  // Hide error + success + re-enable button as soon as user edits the fields
+  // (allows sending to a different recipient after a successful invite)
   ['recipientName','recipientEmail'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       hideInviteError();
       hideInviteSuccess();
-      stopKeyPolling();
-      currentKeyToken = null;
       const btn = document.getElementById('btnInvite');
       if (btn.disabled) btn.disabled = false;
     });
   });
-  // Stop polling when navigating away from send screen
-  document.getElementById('backToDashFromSend').addEventListener('click', stopKeyPolling);
 
   document.getElementById('btnGotoStep2').addEventListener('click', () => {
     const rName = document.getElementById('recipientName').value.trim();
     const rEmail = document.getElementById('recipientEmail').value.trim();
     if (!rName || !rEmail) { showError('Renseignez le nom et l\'email du destinataire.'); return; }
     hideError();
-    stopKeyPolling();
     showStep(2);
     validateStep2();
   });
