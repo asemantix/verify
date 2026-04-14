@@ -298,6 +298,7 @@
       </section>
       <button class="gold" id="btnLogin">ACCÉDER</button>
       <p style="text-align:center;margin-top:16px;"><span class="back-link" id="btnShowCreate">Pas encore de compte ? Créer un espace</span></p>
+      <p style="text-align:center;margin-top:24px;"><button type="button" id="btnClearSession" style="background:transparent;border:1px solid var(--dim);color:var(--dim);font-size:12px;padding:8px 18px;border-radius:6px;cursor:pointer;letter-spacing:1px;">SE DÉCONNECTER / VIDER LA SESSION</button></p>
     </div>
 
     <!-- ════════════════════════════════════════════════════════════════ -->
@@ -694,6 +695,19 @@
     return data;
   }
 
+  // ── Global error handlers — surface any runtime crash in UI ────────
+  function surfaceError(msg) {
+    const b = document.getElementById('errorBox');
+    if (b) { b.textContent = 'Erreur : ' + msg; b.style.display = 'block'; }
+    console.error('[CRASH]', msg);
+  }
+  window.addEventListener('error', (e) => {
+    surfaceError((e.error && e.error.message) || e.message || 'Erreur inconnue');
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    surfaceError('Promise rejetée : ' + ((e.reason && e.reason.message) || e.reason || 'inconnue'));
+  });
+
   // ── Onboarding tutorial ────────────────────────────────────────────
   function maybeShowTutorial() {
     if (localStorage.getItem('tutorial_seen') === '1') return;
@@ -703,11 +717,28 @@
   function closeTutorial(markSeen) {
     document.getElementById('tutoOverlay').classList.remove('active');
     if (markSeen) localStorage.setItem('tutorial_seen', '1');
-    // Safety: always land on dashboard after closing, never on send/other screens
-    if (currentOrg) showScreen('screenDashboard');
+    // After tuto: go straight to send flow step 1 if logged in
+    if (currentOrg) {
+      showScreen('screenSend');
+      showStep(1);
+      // Pre-fill sender from org (in case btnDashSend didn't run first)
+      const senderName = document.getElementById('senderName');
+      const replyTo = document.getElementById('replyTo');
+      if (senderName && !senderName.value) senderName.value = currentOrg.nom || '';
+      if (replyTo && !replyTo.value) replyTo.value = currentOrg.email || '';
+    } else {
+      showScreen('screenLogin');
+    }
   }
   document.getElementById('btnTutoStart').addEventListener('click', () => closeTutorial(false));
   document.getElementById('btnTutoSkip').addEventListener('click', () => closeTutorial(true));
+
+  // Clear session from login screen — hard reload without history entry
+  document.getElementById('btnClearSession')?.addEventListener('click', () => {
+    localStorage.removeItem('authentix_token');
+    localStorage.removeItem('tutorial_seen');
+    location.replace(location.pathname);
+  });
 
   // Blinder l'état initial : l'écran login est le seul visible au chargement
   showScreen('screenLogin');
