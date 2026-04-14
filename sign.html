@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='18 18 72 72'%3E%3Cpath fill='%23c9a84c' d='M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z'/%3E%3C/svg%3E" />
   <title>AUTHENTIX SIGN — Document à signer</title>
-  <meta name="description" content="Ouvrez votre document à signer avec l'app Authentix Sign." />
+  <meta name="description" content="AUTHENTIX SIGN — Partagez votre clé publique pour recevoir votre document signé de manière incontestable et inaliénable, sans tiers de confiance." />
   <style>
     :root {
       --bg: #0c0c0f;
@@ -25,51 +25,92 @@
       min-height: 100vh;
     }
     .container {
-      max-width: 520px; margin: 0 auto; padding: 48px 20px 64px;
+      max-width: 560px; margin: 0 auto; padding: 40px 20px 64px;
       text-align: center;
     }
     .logo {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 96px; height: 96px;
-      border: 2px solid var(--gold); border-radius: 18px;
-      margin-bottom: 20px;
+      width: 80px; height: 80px;
+      border: 2px solid var(--gold); border-radius: 16px;
+      margin-bottom: 18px;
     }
-    h1 { color: var(--gold); font-size: 32px; margin: 0 0 8px; letter-spacing: 1px; }
-    .subtitle { color: var(--dim); font-size: 16px; margin: 0 0 32px; }
+    h1 { color: var(--gold); font-size: 28px; margin: 0 0 8px; letter-spacing: 1px; }
+    .tagline { color: var(--dim); font-size: 15px; margin: 0 0 28px; }
+    h2 {
+      color: var(--gold); font-size: 22px; font-weight: 700;
+      margin: 0 0 14px; line-height: 1.35;
+    }
+    .intro {
+      color: var(--fg); font-size: 16px; line-height: 1.55;
+      margin: 0 0 24px;
+    }
     .card {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 28px 24px; margin-bottom: 20px;
+      border-radius: 12px; padding: 24px; margin-bottom: 18px;
+      text-align: left;
     }
-    .card p { margin: 0 0 12px; font-size: 16px; line-height: 1.6; }
-    .card p:last-child { margin-bottom: 0; }
-    .icon-doc { font-size: 48px; margin-bottom: 12px; }
-    .status { color: var(--green); font-size: 14px; margin: 16px 0; }
-    .spinner {
-      display: inline-block; width: 20px; height: 20px;
-      border: 2px solid var(--dim); border-top-color: var(--gold);
-      border-radius: 50%; animation: spin 0.8s linear infinite;
-      vertical-align: middle; margin-right: 8px;
+    .steps-label {
+      color: var(--gold); font-size: 13px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      margin: 0 0 16px; text-align: center;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    button.gold {
+    ol.steps {
+      list-style: none; padding: 0; margin: 0;
+      counter-reset: step;
+    }
+    ol.steps li {
+      position: relative;
+      padding: 10px 0 10px 48px;
+      color: var(--fg); font-size: 16px; line-height: 1.55;
+      counter-increment: step;
+    }
+    ol.steps li::before {
+      content: counter(step);
+      position: absolute; left: 0; top: 8px;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--gold); color: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 15px;
+    }
+    ol.steps li strong { color: var(--gold); font-weight: 700; }
+    ol.steps li small { color: var(--dim); font-size: 14px; display: block; margin-top: 4px; }
+    .sender-info {
+      background: rgba(201,168,76,0.08);
+      border-left: 3px solid var(--gold);
+      padding: 14px 18px;
+      border-radius: 8px;
+      color: var(--fg);
+      font-size: 15px;
+      line-height: 1.55;
+      text-align: left;
+      margin: 0 0 22px;
+    }
+    .sender-info strong { color: var(--gold); word-break: break-all; }
+    a.gold, button.gold {
       display: block; width: 100%;
-      background: var(--gold); color: var(--bg); border: 0; border-radius: 8px;
-      padding: 18px; font-size: 16px; font-weight: 700;
-      letter-spacing: 1px; cursor: pointer; margin-top: 12px;
-      text-decoration: none;
-    }
-    a.gold {
-      display: block; width: 100%;
-      background: var(--gold); color: var(--bg); border: 0; border-radius: 8px;
-      padding: 18px; font-size: 16px; font-weight: 700;
-      letter-spacing: 1px; cursor: pointer; margin-top: 12px;
+      background: var(--gold); color: var(--bg);
+      border: 0; border-radius: 10px;
+      padding: 18px; font-size: 16px; font-weight: 800;
+      letter-spacing: 1px; cursor: pointer; margin: 0 0 12px;
       text-decoration: none; text-align: center;
     }
-    .note {
-      color: var(--dim); font-size: 14px; margin-top: 24px; line-height: 1.6;
+    a.outline, button.outline {
+      display: block; width: 100%;
+      background: transparent; color: var(--gold);
+      border: 2px solid var(--gold); border-radius: 10px;
+      padding: 16px; font-size: 15px; font-weight: 700;
+      letter-spacing: 0.5px; cursor: pointer; margin: 0 0 12px;
+      text-decoration: none; text-align: center;
     }
+    .return-msg {
+      background: #0e1a12; border: 1px solid #1f3a25;
+      border-radius: 10px; padding: 16px 18px;
+      color: var(--fg); font-size: 14px; line-height: 1.55;
+      margin-top: 24px;
+    }
+    .return-msg strong { color: var(--green); }
     footer {
-      text-align: center; color: var(--dim); font-size: 13px; margin-top: 48px;
+      text-align: center; color: var(--dim); font-size: 13px; margin-top: 40px;
     }
     footer a { color: var(--gold); text-decoration: none; }
   </style>
@@ -78,38 +119,39 @@
   <div class="container">
 
     <div class="logo">
-      <svg viewBox="18 18 72 72" width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="18 18 72 72" width="56" height="56" xmlns="http://www.w3.org/2000/svg">
         <path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/>
       </svg>
     </div>
 
     <h1>AUTHENTIX SIGN</h1>
-    <p class="subtitle">Document à signer</p>
+    <p class="tagline">Signature chiffrée de bout en bout</p>
 
-    <!-- State: trying to open the app -->
-    <div id="stateOpening">
-      <div class="card">
-        <div class="icon-doc">📄</div>
-        <p>Vous avez reçu un document à signer.</p>
-        <p class="status"><span class="spinner"></span> Ouverture de l'app…</p>
-      </div>
+    <h2>Vous avez un document à signer</h2>
+    <p class="intro">Pour recevoir votre document, partagez d'abord votre clé publique avec l'expéditeur.</p>
+
+    <!-- Filled by JS if ?sender= is present -->
+    <div id="senderInfo" class="sender-info" style="display:none;"></div>
+
+    <div class="card">
+      <p class="steps-label">Comment ça marche</p>
+      <ol class="steps">
+        <li>Installez l'app <strong>AUTHENTIX SIGN</strong>.</li>
+        <li>Ouvrez l'app → <strong>MA CLÉ PUBLIQUE</strong> → <strong>PARTAGER</strong>.<small>Votre clé sera envoyée automatiquement à l'expéditeur.</small></li>
+        <li>Revenez sur ce lien pour ouvrir votre document.</li>
+      </ol>
     </div>
 
-    <!-- State: app not found / fallback -->
-    <div id="stateFallback" style="display:none;">
-      <div class="card">
-        <div class="icon-doc">📄</div>
-        <p>Vous avez reçu un document à signer.</p>
-        <p>Pour l'ouvrir, téléchargez l'app Authentix Sign :</p>
-      </div>
+    <a class="gold" id="btnDownload" href="https://play.google.com/store/apps/details?id=app.authentixsign" target="_blank" rel="noopener">
+      TÉLÉCHARGER L'APP
+    </a>
 
-      <a class="gold" href="https://play.google.com/store/apps/details?id=app.authentixsign" target="_blank">
-        TÉLÉCHARGER SUR GOOGLE PLAY
-      </a>
+    <a class="outline" id="btnOpenApp" href="#">
+      J'AI DÉJÀ L'APP — OUVRIR
+    </a>
 
-      <p class="note">
-        Une fois l'app installée, revenez sur ce lien pour ouvrir votre document.
-      </p>
+    <div class="return-msg">
+      <strong>Une fois votre clé publique partagée</strong>, revenez sur ce lien pour ouvrir votre document.
     </div>
 
     <footer>
@@ -124,36 +166,36 @@
     location.replace('https:' + location.href.substring(location.protocol.length));
   }
 
-  // Preserve the full query string (contains ?payload=...)
-  var query = location.search || '';
-
-  // Detect Android
-  var isAndroid = /android/i.test(navigator.userAgent);
-
-  if (isAndroid) {
-    // Try Android Intent deep link — opens the app if installed,
-    // otherwise the browser stays on this page.
-    var intentUrl = 'intent://authentix-sign.tech/sign' + query
-      + '#Intent;scheme=https;package=app.authentixsign;end';
-
-    // Set a timer: if we're still here after 1.5s, the app isn't installed.
-    var fallbackTimer = setTimeout(function() {
-      document.getElementById('stateOpening').style.display = 'none';
-      document.getElementById('stateFallback').style.display = 'block';
-    }, 1500);
-
-    // If the page loses visibility (app opened), cancel the fallback.
-    document.addEventListener('visibilitychange', function() {
-      if (document.hidden) clearTimeout(fallbackTimer);
-    });
-
-    // Navigate to the intent URL
-    window.location.href = intentUrl;
-  } else {
-    // iOS / desktop — show fallback immediately
-    document.getElementById('stateOpening').style.display = 'none';
-    document.getElementById('stateFallback').style.display = 'block';
+  // Read ?sender= from the URL to display who the public key will be sent to.
+  var params = new URLSearchParams(location.search);
+  var sender = params.get('sender');
+  if (sender) {
+    // Very light format validation — just ensure it looks like an email
+    var emailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
+    if (emailLike) {
+      var esc = function(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+      var el = document.getElementById('senderInfo');
+      el.innerHTML = 'Votre clé sera envoyée à : <strong>' + esc(sender) + '</strong>';
+      el.style.display = 'block';
+    }
   }
+
+  // "J'AI DÉJÀ L'APP — OUVRIR" : tente le deep link (Android Intent) en
+  // conservant toute la querystring (payload + sender).
+  document.getElementById('btnOpenApp').addEventListener('click', function(e) {
+    e.preventDefault();
+    var query = location.search || '';
+    var isAndroid = /android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      var intentUrl = 'intent://authentix-sign.tech/sign.html' + query
+        + '#Intent;scheme=https;package=app.authentixsign;end';
+      window.location.href = intentUrl;
+    } else {
+      // iOS / desktop : essaie le https:// standard (prendre en charge par
+      // App Links si configurés, sinon le navigateur reste ici).
+      window.location.href = 'https://authentix-sign.tech/sign.html' + query;
+    }
+  });
 </script>
 </body>
 </html>
