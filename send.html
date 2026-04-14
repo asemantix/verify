@@ -647,6 +647,16 @@
     document.getElementById(id).classList.add('active');
   }
   function showStep(n) {
+    // Guards — cannot jump to a step without its prerequisites
+    if (n === 2 || n === 3) {
+      const rName = (document.getElementById('recipientName')?.value || '').trim();
+      const rEmail = (document.getElementById('recipientEmail')?.value || '').trim();
+      if (!rName || !rEmail) { n = 1; }
+    }
+    if (n === 3) {
+      const pk = (document.getElementById('pubkeyInput')?.value || '').trim();
+      if (!/^[0-9a-fA-F]{64}$/.test(pk)) { n = 2; }
+    }
     document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
     document.getElementById('step'+n).classList.add('active');
     // Update stepper indicator (only visible for user-facing steps 1–3)
@@ -687,14 +697,20 @@
   // ── Onboarding tutorial ────────────────────────────────────────────
   function maybeShowTutorial() {
     if (localStorage.getItem('tutorial_seen') === '1') return;
+    if (!currentOrg) return; // safety: never show if not logged in
     document.getElementById('tutoOverlay').classList.add('active');
   }
   function closeTutorial(markSeen) {
     document.getElementById('tutoOverlay').classList.remove('active');
     if (markSeen) localStorage.setItem('tutorial_seen', '1');
+    // Safety: always land on dashboard after closing, never on send/other screens
+    if (currentOrg) showScreen('screenDashboard');
   }
   document.getElementById('btnTutoStart').addEventListener('click', () => closeTutorial(false));
   document.getElementById('btnTutoSkip').addEventListener('click', () => closeTutorial(true));
+
+  // Blinder l'état initial : l'écran login est le seul visible au chargement
+  showScreen('screenLogin');
 
   // ── SCREEN: LOGIN ──────────────────────────────────────────────────
   document.getElementById('btnLogin').addEventListener('click', async () => {
@@ -707,8 +723,7 @@
       authToken = data.token;
       localStorage.setItem('authentix_token', authToken);
       currentOrg = data.org;
-      showDashboard();
-      maybeShowTutorial();
+      showDashboard({ fromLogin: true });
     } catch (e) { showError(e.message); }
   });
 
@@ -772,9 +787,12 @@
   });
 
   // ── SCREEN: DASHBOARD ──────────────────────────────────────────────
-  async function showDashboard() {
+  async function showDashboard({ fromLogin = false } = {}) {
     showScreen('screenDashboard');
     document.getElementById('dashOrgName').textContent = currentOrg.nom;
+    // Tutorial is only triggered on explicit login, never on auto-reconnect
+    // or on "← Tableau de bord" navigation
+    if (fromLogin) maybeShowTutorial();
     try {
       const dash = await api('GET', '/dashboard');
       document.getElementById('dashTotal').textContent = dash.envois_total;
