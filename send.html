@@ -129,10 +129,30 @@
       line-height: 1.5;
       text-align: left;
     }
-    .contact-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 8px; }
-    .contact-item .name { color: var(--fg); font-size: 15px; font-weight: 600; }
-    .contact-item .email { color: var(--dim); font-size: 13px; }
-    .contact-item .key { color: var(--gold); font-family: monospace; font-size: 11px; word-break: break-all; }
+    .contact-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 10px; }
+    .contact-item .name { color: var(--fg); font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .contact-item .email { color: var(--dim); font-size: 16px; margin-bottom: 6px; }
+    .contact-item .key { color: var(--gold); font-family: monospace; font-size: 14px; word-break: break-all; }
+    .contact-item button.small { font-size: 14px; padding: 10px 18px; }
+    #screenContacts .title-contacts { color: var(--gold); font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+    #screenContacts .back-link { font-size: 16px; margin-bottom: 20px; }
+    #contactsEmpty { font-size: 16px !important; }
+    /* Tutorial-style step cards */
+    .tuto-card {
+      background: var(--card); border: 2px solid var(--gold);
+      border-radius: 16px; padding: 28px 24px; margin-bottom: 16px;
+    }
+    .tuto-head { text-align: center; margin-bottom: 20px; }
+    .tuto-head .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--gold); color: var(--bg);
+      font-size: 30px; font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .tuto-head .step-icon { display: flex; justify-content: center; margin: 8px 0 6px; }
+    .tuto-head h2 { color: var(--gold); font-size: 22px; margin: 6px 0 10px; font-weight: 700; }
+    .tuto-head .desc { color: var(--fg); font-size: 16px; line-height: 1.6; margin: 0 auto; max-width: 520px; }
     .dash-stat { text-align: center; padding: 16px; }
     .dash-stat .num { color: var(--gold); font-size: 32px; font-weight: 700; }
     .dash-stat .label { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
@@ -142,6 +162,108 @@
     .history-item .date { color: var(--dim); font-size: 11px; }
     .history-item .hash { color: var(--gold); font-family: monospace; font-size: 11px; }
     .back-link { color: var(--gold); font-size: 14px; cursor: pointer; margin-bottom: 16px; display: inline-block; }
+
+    /* Onboarding tutorial modal */
+    .tuto-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: flex-start; justify-content: center;
+      z-index: 9999;
+      padding: 32px 16px;
+      overflow-y: auto;
+    }
+    .tuto-overlay.active { display: flex; }
+    .tuto-modal {
+      background: var(--card);
+      border: 2px solid var(--gold);
+      border-radius: 16px;
+      max-width: 1000px; width: 100%;
+      padding: 36px 32px 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      margin: auto;
+    }
+    .tuto-modal .tuto-logo { text-align: center; margin-bottom: 14px; }
+    .tuto-modal .tuto-logo .box {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 64px; height: 64px; border: 2px solid var(--gold); border-radius: 12px;
+    }
+    .tuto-modal h2 {
+      color: var(--gold); font-size: 22px; letter-spacing: 1px;
+      text-align: center; margin: 10px 0 12px; font-weight: 700;
+    }
+    .tuto-modal .tagline {
+      color: var(--fg); font-size: 15px; line-height: 1.6;
+      text-align: center; margin: 0 auto 18px; max-width: 640px;
+    }
+    .tuto-modal .tagline strong { color: var(--gold); }
+    .tuto-modal hr {
+      border: 0; border-top: 1px solid var(--border); margin: 18px 0 24px;
+    }
+    .tuto-cols {
+      display: grid;
+      grid-template-columns: 1fr 32px 1fr 32px 1fr;
+      gap: 0;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+    .tuto-col {
+      background: #0a0a0f;
+      border: 1px solid var(--gold);
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+      display: flex; flex-direction: column;
+    }
+    .tuto-col .icon {
+      display: flex; justify-content: center; margin-bottom: 10px;
+    }
+    .tuto-col .step-label {
+      color: var(--gold); font-size: 13px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .tuto-col h3 {
+      color: var(--gold); font-size: 17px; margin: 0 0 10px; font-weight: 700;
+    }
+    .tuto-col p {
+      color: var(--fg); font-size: 14px; line-height: 1.55;
+      margin: 0 0 8px;
+    }
+    .tuto-col p strong { color: var(--gold); }
+    .tuto-col ul {
+      list-style: none; padding: 0; margin: 6px 0 0;
+      color: var(--fg); font-size: 14px; line-height: 1.7;
+      text-align: left;
+    }
+    .tuto-col ul li::before {
+      content: "• "; color: var(--gold); font-weight: 700;
+    }
+    .tuto-arrow {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold); font-size: 28px; font-weight: 700;
+      user-select: none;
+    }
+    .tuto-footer {
+      text-align: center; margin-top: 8px;
+    }
+    .tuto-footer button.gold {
+      display: inline-block; width: auto;
+      padding: 16px 40px; font-size: 15px; margin: 0 auto;
+    }
+    .tuto-skip {
+      display: block; margin: 14px auto 0;
+      color: var(--dim); font-size: 12px; text-decoration: underline;
+      background: none; border: 0; cursor: pointer;
+    }
+    .tuto-skip:hover { color: var(--gold); }
+    @media (max-width: 820px) {
+      .tuto-cols {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .tuto-arrow { transform: rotate(90deg); margin: 0 auto; }
+    }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/js-sha3@0.9.3/src/sha3.min.js"></script>
@@ -255,7 +377,7 @@
     <!-- ════════════════════════════════════════════════════════════════ -->
     <div id="screenContacts" class="screen">
       <span class="back-link" id="backToDash">← Tableau de bord</span>
-      <p style="color:var(--gold);font-size:16px;font-weight:700;margin-bottom:16px;">Mes destinataires</p>
+      <p class="title-contacts">Mes destinataires</p>
       <div id="contactsList"></div>
       <p id="contactsEmpty" style="color:var(--dim);font-size:13px;display:none;">Aucun destinataire enregistré.</p>
     </div>
@@ -282,9 +404,16 @@
 
       <!-- STEP 1: Invite recipient -->
       <div id="step1" class="step active">
-        <p class="step-title">Inviter votre destinataire</p>
+        <div class="tuto-card">
+          <div class="tuto-head">
+            <div class="step-num">1</div>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+            </div>
+            <h2>Inviter votre destinataire</h2>
+            <p class="desc">Pour recevoir votre document, votre destinataire doit d'abord installer l'app AUTHENTIX SIGN. Saisissez ses coordonnées ci-dessous pour lui envoyer le lien de téléchargement.</p>
+          </div>
 
-        <section class="card">
           <div class="field">
             <label>Nom du destinataire</label>
             <input type="text" id="recipientName" placeholder="Ex: Alice Martin">
@@ -293,9 +422,11 @@
             <label>Email du destinataire</label>
             <input type="email" id="recipientEmail" placeholder="alice@email.com">
           </div>
-        </section>
 
-        <button class="gold" id="btnInvite">ENVOYER LE LIEN DE L'APP &#10140;</button>
+          <button class="gold" id="btnInvite">ENVOYER LE LIEN DE L'APP &#10140;</button>
+          <p id="inviteSuccess" style="display:none;color:var(--green);font-size:15px;font-weight:600;margin-top:12px;text-align:center;"></p>
+          <p id="inviteError" style="display:none;color:var(--red);font-size:14px;margin-top:10px;text-align:center;"></p>
+        </div>
 
         <div class="invite-box" style="margin-top:20px;">
           <p>Votre destinataire doit installer l'app AUTHENTIX SIGN et vous adresser sa clé publique.</p>
@@ -306,9 +437,16 @@
 
       <!-- STEP 2: Enter public key -->
       <div id="step2" class="step">
-        <p class="step-title">Saisir la clé publique</p>
+        <div class="tuto-card">
+          <div class="tuto-head">
+            <div class="step-num">2</div>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h10M18 12v4M22 12v3"/></svg>
+            </div>
+            <h2>Saisir la clé publique</h2>
+            <p class="desc">Votre destinataire vous a envoyé sa clé publique (64 caractères). Collez-la ci-dessous — elle servira à chiffrer le document pour que lui seul puisse le lire.</p>
+          </div>
 
-        <section class="card">
           <div class="field">
             <label>Clé publique du destinataire</label>
             <input type="text" id="pubkeyInput" placeholder="Collez ici la clé publique envoyée par votre destinataire" maxlength="64" autocomplete="off" spellcheck="false">
@@ -320,7 +458,7 @@
           <div id="saveContactBox" style="display:none;margin-top:8px;">
             <button class="outline small" id="btnSaveContact">SAUVEGARDER CE DESTINATAIRE</button>
           </div>
-        </section>
+        </div>
 
         <button class="gold" id="btnStepKeyNext" disabled>VALIDER &#10140;</button>
         <button class="outline" id="btnStepKeyBack">&#8592; RETOUR</button>
@@ -328,9 +466,16 @@
 
       <!-- STEP 3: Send document -->
       <div id="step3" class="step">
-        <p class="step-title">Envoyer le document</p>
+        <div class="tuto-card">
+          <div class="tuto-head">
+            <div class="step-num">3</div>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>
+            </div>
+            <h2>Envoyer le document</h2>
+            <p class="desc">Sélectionnez le PDF à signer. Il sera chiffré sur votre appareil avant l'envoi — personne d'autre que votre destinataire ne pourra le lire.</p>
+          </div>
 
-        <section class="card">
           <div class="field">
             <label>Document PDF</label>
             <div class="file-input">
@@ -343,26 +488,20 @@
             <p style="color:var(--green);margin:8px 0 0;font-size:15px;">Document prêt ✓</p>
             <p class="hash-display" id="docHashDisplay"></p>
           </div>
-        </section>
 
-        <section class="card">
-          <div class="field">
-            <label>Votre nom (expéditeur)</label>
-            <input type="text" id="senderName" placeholder="Ex: Jean Dupont">
-          </div>
-          <div class="field">
-            <label>Email de l'expéditeur</label>
-            <input type="email" id="replyTo" placeholder="votre@email.com">
-          </div>
-          <div class="field">
+          <!-- Sender fields hidden — auto-filled from currentOrg -->
+          <input type="hidden" id="senderName">
+          <input type="hidden" id="replyTo">
+
+          <div class="field" style="margin-top:22px;">
             <label>SMS de retour (optionnel)</label>
             <input type="tel" id="replySms" placeholder="+33 6 ...">
           </div>
           <div class="field">
-            <label>Date d'expiration</label>
+            <label>Date d'expiration (optionnel)</label>
             <input type="date" id="expiresDate">
           </div>
-        </section>
+        </div>
 
         <button class="gold" id="btnStepDocSend" disabled>CHIFFRER ET ENVOYER</button>
         <button class="outline" id="btnStepDocBack">&#8592; RETOUR</button>
@@ -401,6 +540,76 @@
     </div>
 
     <div id="errorBox" class="error" style="display:none;"></div>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- ONBOARDING TUTORIAL MODAL                                       -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div id="tutoOverlay" class="tuto-overlay" role="dialog" aria-modal="true" aria-labelledby="tutoTitle">
+      <div class="tuto-modal">
+        <div class="tuto-logo">
+          <div class="box"><svg viewBox="18 18 72 72" width="44" height="44" xmlns="http://www.w3.org/2000/svg"><path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/></svg></div>
+        </div>
+        <h2 id="tutoTitle">AUTHENTIX SIGN</h2>
+        <p class="tagline">
+          La seule signature numérique <strong>mathématiquement incontestable</strong> et <strong>inaliénable</strong>.<br>
+          Sans tiers de confiance.
+        </p>
+
+        <hr>
+
+        <div class="tuto-cols">
+          <!-- Column 1 -->
+          <div class="tuto-col">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h10M18 12v4M22 12v3"/></svg>
+            </div>
+            <div class="step-label">Étape 1</div>
+            <h3>Demandez la clé publique</h3>
+            <p>La clé publique est l'<strong>IBAN numérique</strong> de votre destinataire.</p>
+            <p>Il vous la transmet en un clic depuis son app <strong>AUTHENTIX SIGN</strong>.</p>
+          </div>
+
+          <div class="tuto-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </div>
+
+          <!-- Column 2 -->
+          <div class="tuto-col">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>
+            </div>
+            <div class="step-label">Étape 2</div>
+            <h3>Envoyez le document chiffré</h3>
+            <p>Le PDF est chiffré <strong>sur votre appareil</strong>.</p>
+            <p><strong>Aucun serveur</strong> — ni le nôtre, ni aucun intermédiaire — ne voit le contenu.</p>
+          </div>
+
+          <div class="tuto-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </div>
+
+          <!-- Column 3 -->
+          <div class="tuto-col">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z"/><path d="M8 12l3 3 5-6"/></svg>
+            </div>
+            <div class="step-label">Étape 3</div>
+            <h3>Recevez la preuve</h3>
+            <p>Après signature, vous recevez :</p>
+            <ul>
+              <li>Notification ✅</li>
+              <li>Certificat <strong>.cert</strong></li>
+              <li>Journal <strong>VCH</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tuto-footer">
+          <button class="gold" id="btnTutoStart">COMMENCER &#10140;</button>
+          <button type="button" class="tuto-skip" id="btnTutoSkip">Ne plus afficher</button>
+        </div>
+      </div>
+    </div>
 
     <footer>
       <p>AUTHENTIX SIGN &mdash; <a href="https://authentix-sign.tech">authentix-sign.tech</a></p>
@@ -474,6 +683,18 @@
     return data;
   }
 
+  // ── Onboarding tutorial ────────────────────────────────────────────
+  function maybeShowTutorial() {
+    if (localStorage.getItem('tutorial_seen') === '1') return;
+    document.getElementById('tutoOverlay').classList.add('active');
+  }
+  function closeTutorial(markSeen) {
+    document.getElementById('tutoOverlay').classList.remove('active');
+    if (markSeen) localStorage.setItem('tutorial_seen', '1');
+  }
+  document.getElementById('btnTutoStart').addEventListener('click', () => closeTutorial(false));
+  document.getElementById('btnTutoSkip').addEventListener('click', () => closeTutorial(true));
+
   // ── SCREEN: LOGIN ──────────────────────────────────────────────────
   document.getElementById('btnLogin').addEventListener('click', async () => {
     const nom = document.getElementById('loginOrg').value.trim();
@@ -486,12 +707,15 @@
       localStorage.setItem('authentix_token', authToken);
       currentOrg = data.org;
       showDashboard();
+      maybeShowTutorial();
     } catch (e) { showError(e.message); }
   });
 
   // Auto-reconnect if token exists
   if (authToken) {
-    api('GET', '/auth/me').then(org => { currentOrg = org; showDashboard(); }).catch(() => {
+    api('GET', '/auth/me').then(org => {
+      currentOrg = org; showDashboard(); maybeShowTutorial();
+    }).catch(() => {
       authToken = null; localStorage.removeItem('authentix_token');
     });
   }
@@ -575,6 +799,9 @@
   function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 
   document.getElementById('btnDashSend').addEventListener('click', () => {
+    stopKeyPolling();
+    currentKeyToken = null;
+    hideInviteError(); hideInviteSuccess();
     showScreen('screenSend');
     showStep(1);
     pdfBytes = null; docHash = '';
@@ -590,6 +817,8 @@
   });
   document.getElementById('btnDashContacts').addEventListener('click', () => { showContacts(); });
   document.getElementById('btnLogout').addEventListener('click', async () => {
+    stopKeyPolling();
+    currentKeyToken = null;
     try { await api('POST', '/auth/logout'); } catch {}
     authToken = null; currentOrg = null;
     localStorage.removeItem('authentix_token');
@@ -661,29 +890,112 @@
   document.getElementById('backToDash').addEventListener('click', () => { showDashboard(); });
 
   // ── STEP 1: Invite recipient ───────────────────────────────────────
-  document.getElementById('btnInvite').addEventListener('click', () => {
+  function showInviteError(msg) {
+    const el = document.getElementById('inviteError');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideInviteError() {
+    document.getElementById('inviteError').style.display = 'none';
+  }
+  function showInviteSuccess(msg) {
+    const el = document.getElementById('inviteSuccess');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideInviteSuccess() {
+    document.getElementById('inviteSuccess').style.display = 'none';
+  }
+  let keyPollTimer = null;
+  let currentKeyToken = null;
+
+  function stopKeyPolling() {
+    if (keyPollTimer) { clearInterval(keyPollTimer); keyPollTimer = null; }
+  }
+
+  async function pollKeyRequest() {
+    if (!currentKeyToken) return;
+    try {
+      const data = await api('GET', '/key-request/' + currentKeyToken);
+      if (data.status === 'received' && data.public_key) {
+        stopKeyPolling();
+        showInviteSuccess('🔑 Clé reçue ✅ — passage à l\'étape 2…');
+        // Pre-fill key & auto-advance to step 2
+        document.getElementById('pubkeyInput').value = data.public_key;
+        setTimeout(() => {
+          showStep(2);
+          validateStep2();
+        }, 900);
+      }
+    } catch (e) {
+      // Silent — transient network errors shouldn't break the flow
+      console.log('[poll] error:', e.message);
+    }
+  }
+
+  function showInviteSuccess(msg) {
+    const el = document.getElementById('inviteSuccess');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideInviteSuccess() {
+    document.getElementById('inviteSuccess').style.display = 'none';
+  }
+  document.getElementById('btnInvite').addEventListener('click', async () => {
     const rEmail = document.getElementById('recipientEmail').value.trim();
     const rName = document.getElementById('recipientName').value.trim();
-    const subject = encodeURIComponent('Téléchargez Authentix Sign');
-    const body = encodeURIComponent(
-      'Bonjour' + (rName ? ' ' + rName : '') + ',\n\n'
-      + 'Pour signer vos documents, téléchargez l\'app Authentix Sign sur Google Play :\n'
-      + 'https://play.google.com/store/apps/details?id=app.authentixsign\n\n'
-      + 'Une fois installée :\n'
-      + '1. Ouvrez l\'app\n'
-      + '2. Allez dans Ma clé publique\n'
-      + '3. Cliquez Partager\n'
-      + '4. Envoyez-moi votre clé\n\n'
-      + 'Cordialement'
-    );
-    window.open('mailto:' + encodeURIComponent(rEmail) + '?subject=' + subject + '&body=' + body, '_self');
+    if (!rName || !rEmail) {
+      showInviteError('Veuillez renseigner le nom ET l\'email du destinataire avant d\'envoyer le lien.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rEmail)) {
+      showInviteError('Email du destinataire invalide.');
+      return;
+    }
+    hideInviteError();
+    hideInviteSuccess();
+    stopKeyPolling();
+    const btn = document.getElementById('btnInvite');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Envoi en cours...';
+    try {
+      // 1. Send invitation email AND 2. Create key-request in parallel
+      const [, keyReq] = await Promise.all([
+        api('POST', '/send-invite', { recipient_name: rName, recipient_email: rEmail }),
+        api('POST', '/key-request', { recipient_name: rName, recipient_email: rEmail }),
+      ]);
+      currentKeyToken = keyReq.token;
+      btn.textContent = originalLabel;
+      // Button stays disabled to prevent double-send; confirmation shown below
+      showInviteSuccess('✅ Invitation envoyée à ' + rName + '. En attente de sa clé publique…');
+      // Start polling every 10s
+      pollKeyRequest();
+      keyPollTimer = setInterval(pollKeyRequest, 10000);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      showInviteError('Échec de l\'envoi : ' + e.message);
+    }
   });
+  // Hide error + success + stop polling + re-enable button as soon as user
+  // edits the fields (allows sending to a different recipient)
+  ['recipientName','recipientEmail'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      hideInviteError();
+      hideInviteSuccess();
+      stopKeyPolling();
+      currentKeyToken = null;
+      const btn = document.getElementById('btnInvite');
+      if (btn.disabled) btn.disabled = false;
+    });
+  });
+  // Stop polling when navigating away from send screen
+  document.getElementById('backToDashFromSend').addEventListener('click', stopKeyPolling);
 
   document.getElementById('btnGotoStep2').addEventListener('click', () => {
     const rName = document.getElementById('recipientName').value.trim();
     const rEmail = document.getElementById('recipientEmail').value.trim();
     if (!rName || !rEmail) { showError('Renseignez le nom et l\'email du destinataire.'); return; }
     hideError();
+    stopKeyPolling();
     showStep(2);
     validateStep2();
   });

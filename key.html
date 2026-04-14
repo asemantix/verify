@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AUTHENTIX SIGN — Partager ma clé publique</title>
+  <meta name="description" content="Partagez votre clé publique Authentix Sign pour recevoir un document signé en toute sécurité." />
+  <style>
+    :root {
+      --bg: #0c0c0f;
+      --card: #14141a;
+      --fg: #f0ece4;
+      --dim: #a0a0a0;
+      --gold: #c9a84c;
+      --green: #22c55e;
+      --red: #e24b4a;
+      --border: #2a2a33;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+    }
+    .container { max-width: 640px; margin: 0 auto; padding: 40px 20px 64px; }
+    header { text-align: center; padding: 16px 0 24px; }
+    .logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 72px; height: 72px;
+      border: 2px solid var(--gold); border-radius: 14px;
+    }
+    h1 { color: var(--gold); font-size: 30px; margin: 12px 0 4px; letter-spacing: 1px; }
+    .tagline { color: var(--dim); font-size: 15px; margin: 0; }
+    .tuto-card {
+      background: var(--card); border: 2px solid var(--gold);
+      border-radius: 16px; padding: 28px 24px; margin-bottom: 16px;
+    }
+    .tuto-head { text-align: center; margin-bottom: 22px; }
+    .tuto-head .icon { margin-bottom: 10px; }
+    .tuto-head h2 { color: var(--gold); font-size: 22px; margin: 6px 0 12px; font-weight: 700; }
+    .tuto-head .desc { color: var(--fg); font-size: 16px; line-height: 1.6; margin: 0 auto; max-width: 520px; }
+    .tuto-head .sender-invite {
+      background: rgba(201,168,76,0.08);
+      border-left: 3px solid var(--gold);
+      padding: 14px 18px;
+      border-radius: 8px;
+      color: var(--fg);
+      font-size: 16px;
+      line-height: 1.55;
+      text-align: left;
+      margin: 16px 0 0;
+    }
+    .tuto-head .sender-invite strong { color: var(--gold); }
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block; color: var(--gold); font-size: 14px;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+    }
+    .field input[type="text"] {
+      width: 100%; background: #0a0a0f; border: 1px solid var(--gold);
+      border-radius: 8px; padding: 14px 16px; color: var(--fg); font-size: 16px;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+    }
+    .field input::placeholder { color: var(--dim); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .hint { color: var(--dim); font-size: 14px; line-height: 1.5; margin: 0 0 16px; }
+    button.gold {
+      display: block; width: 100%;
+      background: var(--gold); color: var(--bg); border: 0; border-radius: 10px;
+      padding: 18px; font-size: 16px; font-weight: 700;
+      letter-spacing: 1px; cursor: pointer;
+    }
+    button.gold:disabled { background: #2a2a2a; color: #5a5650; cursor: not-allowed; }
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid var(--dim); border-top-color: var(--gold);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      vertical-align: middle; margin-right: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .success-box {
+      background: #0e1a12; border: 2px solid var(--green);
+      border-radius: 12px; padding: 28px 24px; text-align: center;
+    }
+    .success-box h2 { color: var(--green); font-size: 24px; margin: 0 0 12px; }
+    .success-box p { color: var(--fg); font-size: 16px; line-height: 1.6; margin: 8px 0; }
+    .error-box {
+      background: #1a0d0d; border: 1px solid var(--red);
+      border-radius: 8px; padding: 14px 18px; color: var(--red);
+      font-size: 15px; margin-top: 14px; display: none;
+    }
+    .loading-state {
+      text-align: center; padding: 60px 20px; color: var(--dim);
+    }
+    .install-hint {
+      background: #0a0a0f;
+      border: 1px dashed var(--gold);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin: 18px 0 0;
+    }
+    .install-hint p { color: var(--fg); font-size: 14px; line-height: 1.55; margin: 0 0 8px; }
+    .install-hint a {
+      display: inline-block; margin-top: 6px;
+      color: var(--gold); font-weight: 700; text-decoration: none; font-size: 14px;
+    }
+    footer { text-align: center; color: var(--dim); font-size: 13px; margin-top: 32px; }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div class="logo"><svg viewBox="18 18 72 72" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/></svg></div>
+      <h1>AUTHENTIX SIGN</h1>
+      <p class="tagline">Signature chiffrée de bout en bout</p>
+    </header>
+
+    <!-- Loading while we validate token -->
+    <div id="loadingScreen" class="loading-state">
+      <div class="spinner" style="width:24px;height:24px;"></div>
+      <p style="margin-top:16px;">Chargement…</p>
+    </div>
+
+    <!-- Invalid / missing token -->
+    <div id="invalidScreen" class="tuto-card" style="display:none;border-color:var(--red);">
+      <div class="tuto-head">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#e24b4a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        </div>
+        <h2 style="color:var(--red);">Lien invalide</h2>
+        <p class="desc">Ce lien de partage de clé n'est pas valide ou a déjà été utilisé.</p>
+      </div>
+    </div>
+
+    <!-- Main form -->
+    <div id="formScreen" style="display:none;">
+      <div class="tuto-card">
+        <div class="tuto-head">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h10M18 12v4M22 12v3"/></svg>
+          </div>
+          <h2>Partagez votre clé publique</h2>
+          <p class="desc">Votre clé publique permet à l'expéditeur de chiffrer un document que vous seul pourrez lire.</p>
+          <div class="sender-invite" id="senderInvite">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Votre clé publique</label>
+          <input type="text" id="pubkeyInput" placeholder="Collez ici votre clé publique (64 caractères hexadécimaux)" maxlength="64" autocomplete="off" spellcheck="false">
+          <p class="hint" style="margin-top:10px;">Dans l'app AUTHENTIX SIGN, cliquez sur <strong style="color:var(--gold);">MA CLÉ PUBLIQUE</strong> puis <strong style="color:var(--gold);">PARTAGER / COPIER</strong>, et collez-la ci-dessus.</p>
+        </div>
+
+        <button class="gold" id="btnSubmit" disabled>ENVOYER MA CLÉ</button>
+        <div class="error-box" id="errorBox"></div>
+
+        <div class="install-hint">
+          <p>Vous n'avez pas encore l'application ?</p>
+          <a href="https://play.google.com/store/apps/details?id=app.authentixsign" target="_blank">📱 Télécharger AUTHENTIX SIGN sur Google Play ➜</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success -->
+    <div id="successScreen" style="display:none;">
+      <div class="success-box">
+        <div style="margin-bottom:8px;">
+          <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg>
+        </div>
+        <h2>✅ Clé transmise</h2>
+        <p>Votre clé publique a bien été envoyée à l'expéditeur.</p>
+        <p style="color:var(--dim);">Vous recevrez bientôt votre document chiffré.</p>
+      </div>
+    </div>
+
+    <footer>
+      <p>AUTHENTIX SIGN — <a href="https://authentix-sign.tech">authentix-sign.tech</a></p>
+      <p>&copy; AION ASEMANTIX</p>
+    </footer>
+  </div>
+
+<script>
+(function () {
+  const API = 'https://authentix-backend.asemantix.workers.dev';
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
+
+  const $loading = document.getElementById('loadingScreen');
+  const $invalid = document.getElementById('invalidScreen');
+  const $form = document.getElementById('formScreen');
+  const $success = document.getElementById('successScreen');
+  const $senderInvite = document.getElementById('senderInvite');
+  const $input = document.getElementById('pubkeyInput');
+  const $btn = document.getElementById('btnSubmit');
+  const $err = document.getElementById('errorBox');
+
+  function showError(msg) { $err.textContent = msg; $err.style.display = 'block'; }
+  function hideError() { $err.style.display = 'none'; }
+
+  if (!token || !/^[a-f0-9-]{36}$/.test(token)) {
+    $loading.style.display = 'none';
+    $invalid.style.display = 'block';
+    return;
+  }
+
+  // We don't have a public endpoint to fetch sender info (by design, to avoid
+  // leaking org data via token enumeration). The invitation email already
+  // told the recipient who invited them — we just display a generic message.
+  $senderInvite.innerHTML = 'Un expéditeur vous a invité à partager votre clé publique pour recevoir un document chiffré via <strong>AUTHENTIX SIGN</strong>.';
+  $loading.style.display = 'none';
+  $form.style.display = 'block';
+
+  function validate() {
+    const v = $input.value.trim();
+    $btn.disabled = !/^[0-9a-fA-F]{64}$/.test(v);
+  }
+  $input.addEventListener('input', () => { hideError(); validate(); });
+
+  $btn.addEventListener('click', async () => {
+    const publicKey = $input.value.trim();
+    if (!/^[0-9a-fA-F]{64}$/.test(publicKey)) {
+      showError('Clé publique invalide (64 caractères hexadécimaux attendus).');
+      return;
+    }
+    hideError();
+    $btn.disabled = true;
+    $btn.innerHTML = '<span class="spinner"></span>Envoi en cours…';
+    try {
+      const resp = await fetch(API + '/key-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, public_key: publicKey }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        $btn.disabled = false;
+        $btn.textContent = 'ENVOYER MA CLÉ';
+        showError(data.error || 'Erreur serveur.');
+        return;
+      }
+      $form.style.display = 'none';
+      $success.style.display = 'block';
+    } catch (e) {
+      $btn.disabled = false;
+      $btn.textContent = 'ENVOYER MA CLÉ';
+      showError('Erreur réseau : ' + e.message);
+    }
+  });
+})();
+</script>
+</body>
+</html>
