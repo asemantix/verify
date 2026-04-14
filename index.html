@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='18 18 72 72'%3E%3Cpath fill='%23c9a84c' d='M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z'/%3E%3C/svg%3E" />
-  <title>AUTHENTIX SIGN — Vérification de document</title>
-  <meta name="description" content="AUTHENTIX SIGN — La seule signature numérique mathématiquement incontestable et inaliénable. Sans tiers de confiance." />
+  <title>AUTHENTIX SIGN — Envoyer un document</title>
+  <meta name="description" content="Envoyez un document à signer via Authentix Sign. Chiffrement de bout en bout." />
   <style>
     :root {
       --bg: #0c0c0f;
@@ -19,666 +19,1216 @@
     }
     * { box-sizing: border-box; }
     html, body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background: var(--bg);
       color: var(--fg);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       min-height: 100vh;
     }
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 32px 20px 64px;
-    }
-    header {
-      text-align: center;
-      padding: 40px 20px;
-      width: 100%;
-    }
+    .container { max-width: 720px; margin: 0 auto; padding: 48px 20px 64px; }
+    header { text-align: center; padding: 16px 0 24px; }
     .logo {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 72px;
-      height: 72px;
-      border: 2px solid var(--gold);
-      border-radius: 14px;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 72px; height: 72px;
+      border: 2px solid var(--gold); border-radius: 14px;
     }
-    h1 {
-      color: var(--gold);
-      font-size: 26px;
-      margin: 12px 0 4px;
-      letter-spacing: 1px;
-    }
-    .subtitle {
-      color: var(--dim);
-      font-size: 13px;
-      margin: 0;
-    }
-    .tagline { margin: 20px 0 0; text-align: center; }
-    .tag-line1 {
-      display: block; font-size: 15px; font-weight: 400; color: var(--gold);
-      opacity: 0.7; letter-spacing: 0.25em; text-transform: uppercase;
-      margin-bottom: 14px;
-    }
-    .tag-main {
-      display: block; font-size: 52px; font-weight: 800; color: var(--gold);
-      font-family: Georgia, serif; font-style: italic;
-      line-height: 1.08; letter-spacing: -0.01em; margin-bottom: 6px;
-    }
-    .tag-line3 {
-      display: block; font-size: 30px; font-weight: 600; color: var(--gold);
-      font-family: Georgia, serif; opacity: 0.92;
-      margin-bottom: 16px;
-    }
-    .tag-line4 {
-      display: block; font-size: 17px; font-weight: 700; color: var(--gold);
-      opacity: 0.85; letter-spacing: 0.12em; text-transform: uppercase;
-    }
-    .notice {
-      background: #0e1a12;
-      border: 1px solid #1f3a25;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin: 20px 0 24px;
-      color: var(--green);
-      font-size: 12px;
-      text-align: center;
-    }
+    h1 { color: var(--gold); font-size: 32px; margin: 12px 0 4px; letter-spacing: 1px; }
+    .subtitle { color: var(--dim); font-size: 16px; margin: 0; }
     section.card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 18px;
-      margin-bottom: 14px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 24px; margin-bottom: 14px;
     }
-    .field {
-      margin-bottom: 16px;
-    }
+    .field { margin-bottom: 22px; }
     .field:last-child { margin-bottom: 0; }
     .field label {
-      display: block;
-      color: var(--dim);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 6px;
+      display: block; color: var(--gold); font-size: 14px;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
     }
+    .field input[type="text"], .field input[type="email"], .field input[type="tel"], .field input[type="date"], .field input[type="password"] {
+      width: 100%; background: #0a0a0f; border: 1px solid var(--gold);
+      border-radius: 8px; padding: 12px 14px; color: var(--fg); font-size: 16px;
+    }
+    .field input::placeholder { color: var(--dim); }
     .file-input {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      border: 1px dashed var(--border);
-      border-radius: 8px;
-      padding: 12px 14px;
-      background: #0a0a0f;
+      position: relative; display: flex; align-items: center;
+      justify-content: space-between; gap: 12px;
+      border: 1px dashed var(--gold); border-radius: 8px;
+      padding: 12px 14px; background: #0a0a0f;
     }
-    .file-input input[type="file"] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-    }
-    .file-input .name {
-      flex: 1;
-      color: var(--fg);
-      font-size: 13px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    .file-input input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .file-input .name { flex: 1; color: var(--fg); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .file-input .placeholder { color: var(--dim); }
-    .file-input .pick {
-      color: var(--gold);
-      font-size: 12px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
+    .file-input .pick { color: var(--gold); font-size: 14px; font-weight: 600; white-space: nowrap; }
     button.gold {
-      display: block;
-      width: 100%;
-      background: var(--gold);
-      color: var(--bg);
-      border: 0;
-      border-radius: 8px;
-      padding: 14px;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      cursor: pointer;
-      margin-top: 8px;
+      display: block; width: 100%;
+      background: var(--gold); color: var(--bg); border: 0; border-radius: 8px;
+      padding: 18px; font-size: 16px; font-weight: 700;
+      letter-spacing: 1px; cursor: pointer; margin-top: 8px;
     }
-    button.gold:disabled {
-      background: #2a2a2a;
-      color: #5a5650;
-      cursor: not-allowed;
-    }
+    button.gold:disabled { background: #2a2a2a; color: #5a5650; cursor: not-allowed; }
     button.outline {
-      display: block;
-      width: 100%;
-      background: transparent;
-      color: var(--gold);
-      border: 1px solid var(--gold);
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 10px;
+      display: block; width: 100%;
+      background: transparent; color: var(--gold); border: 1px solid var(--gold);
+      border-radius: 8px; padding: 14px; font-size: 14px; font-weight: 600;
+      cursor: pointer; margin-top: 10px;
     }
-    .result {
-      background: #0e1a12;
-      border: 1px solid #1f3a25;
-    }
-    .result.fail {
-      background: #1a0d0d;
-      border-color: #3a1f1f;
-    }
-    .result h2 {
-      margin: 0 0 12px;
-      color: var(--green);
-      font-size: 18px;
-    }
-    .result.fail h2 { color: var(--red); }
-    .result ul {
-      list-style: none;
-      padding: 0;
-      margin: 0 0 12px;
-    }
-    .result li {
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      font-size: 13px;
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .result li:last-child { border-bottom: 0; }
-    .result li .k { color: var(--dim); }
-    .result li .v { color: var(--fg); text-align: right; word-break: break-all; }
-    .result li .ok { color: var(--green); }
-    .result li .ko { color: var(--red); }
+    button.small { display: inline-block; width: auto; padding: 8px 16px; font-size: 12px; margin: 4px 4px 4px 0; }
+    button.danger { background: transparent; color: var(--red); border-color: var(--red); }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .step { display: none; }
+    .step.active { display: block; }
+    .success { background: #0e1a12; border: 1px solid #1f3a25; border-radius: 10px; padding: 24px; text-align: center; }
+    .success h2 { color: var(--green); margin: 0 0 8px; }
     .mono { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
-    .hint {
-      color: var(--dim);
-      font-size: 11px;
-      margin-top: 6px;
-    }
-    .error {
-      color: var(--red);
-      font-size: 13px;
-      padding: 10px 14px;
-      background: #1a0d0d;
-      border: 1px solid #3a1f1f;
-      border-radius: 8px;
-      margin-top: 14px;
-    }
-    footer {
-      text-align: center;
-      color: var(--dim);
-      font-size: 11px;
-      margin-top: 32px;
-    }
+    .hash-display { color: var(--gold); font-family: monospace; font-size: 15px; margin-top: 8px; word-break: break-all; }
+    .notice { background: #0e1a12; border: 1px solid #1f3a25; border-radius: 8px; padding: 14px 18px; margin: 20px 0 24px; color: var(--green); font-size: 14px; text-align: center; line-height: 1.6; }
+    .error { color: var(--red); font-size: 14px; padding: 12px 14px; background: #1a0d0d; border: 1px solid #3a1f1f; border-radius: 8px; margin-top: 14px; }
+    #qr-container { text-align: center; margin: 24px 0; }
+    #qr-container canvas { border-radius: 8px; }
+    .instructions { color: var(--dim); font-size: 14px; text-align: center; margin-top: 16px; line-height: 1.6; }
+    .expire-info { color: var(--gold); font-size: 14px; text-align: center; margin-top: 8px; }
+    footer { text-align: center; color: var(--dim); font-size: 13px; margin-top: 32px; }
     footer a { color: var(--gold); text-decoration: none; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--dim); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Step progress indicator */
+    .stepper {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; margin: 8px 0 28px;
+    }
+    .stepper .dot {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--border);
+      color: var(--dim); font-weight: 700; font-size: 14px;
+      background: var(--card);
+    }
+    .stepper .dot.active {
+      border-color: var(--gold); color: var(--gold);
+      background: rgba(201,168,76,0.12);
+    }
+    .stepper .dot.done {
+      border-color: var(--green); color: var(--green);
+    }
+    .stepper .bar {
+      flex: 1; max-width: 48px; height: 2px; background: var(--border);
+    }
+    .stepper .bar.done { background: var(--green); }
+    .step-title { color: var(--gold); font-size: 18px; font-weight: 700; margin: 0 0 16px; text-align: center; }
+
+    .invite-box { margin-bottom: 18px; }
+    .invite-box p {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--gold);
+      border-left: 3px solid var(--gold);
+      padding: 12px 16px;
+      background: rgba(201,168,76,0.08);
+      border-radius: 6px;
+      margin: 0 0 16px;
+      line-height: 1.5;
+      text-align: left;
+    }
+    .contact-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 10px; }
+    .contact-item .name { color: var(--fg); font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .contact-item .email { color: var(--dim); font-size: 16px; margin-bottom: 6px; }
+    .contact-item .key { color: var(--gold); font-family: monospace; font-size: 14px; word-break: break-all; }
+    .contact-item button.small { font-size: 14px; padding: 10px 18px; }
+    #screenContacts .title-contacts { color: var(--gold); font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+    #screenContacts .back-link { font-size: 16px; margin-bottom: 20px; }
+    #contactsEmpty { font-size: 16px !important; }
+    /* Tutorial-style step cards */
+    .tuto-card {
+      background: var(--card); border: 2px solid var(--gold);
+      border-radius: 16px; padding: 28px 24px; margin-bottom: 16px;
+    }
+    .tuto-head { text-align: center; margin-bottom: 20px; }
+    .tuto-head .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--gold); color: var(--bg);
+      font-size: 30px; font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .tuto-head .step-icon { display: flex; justify-content: center; margin: 8px 0 6px; }
+    .tuto-head h2 { color: var(--gold); font-size: 22px; margin: 6px 0 10px; font-weight: 700; }
+    .tuto-head .desc { color: var(--fg); font-size: 16px; line-height: 1.6; margin: 0 auto; max-width: 520px; }
+    .dash-stat { text-align: center; padding: 16px; }
+    .dash-stat .num { color: var(--gold); font-size: 32px; font-weight: 700; }
+    .dash-stat .label { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+    .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+    .history-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 6px; font-size: 13px; }
+    .history-item .dest { color: var(--fg); }
+    .history-item .date { color: var(--dim); font-size: 11px; }
+    .history-item .hash { color: var(--gold); font-family: monospace; font-size: 11px; }
+    .back-link { color: var(--gold); font-size: 14px; cursor: pointer; margin-bottom: 16px; display: inline-block; }
+
+    /* Onboarding tutorial modal */
+    .tuto-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: flex-start; justify-content: center;
+      z-index: 9999;
+      padding: 32px 16px;
+      overflow-y: auto;
+    }
+    .tuto-overlay.active { display: flex; }
+    .tuto-modal {
+      background: var(--card);
+      border: 2px solid var(--gold);
+      border-radius: 16px;
+      max-width: 1000px; width: 100%;
+      padding: 36px 32px 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      margin: auto;
+    }
+    .tuto-modal .tuto-logo { text-align: center; margin-bottom: 14px; }
+    .tuto-modal .tuto-logo .box {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 64px; height: 64px; border: 2px solid var(--gold); border-radius: 12px;
+    }
+    .tuto-modal h2 {
+      color: var(--gold); font-size: 22px; letter-spacing: 1px;
+      text-align: center; margin: 10px 0 12px; font-weight: 700;
+    }
+    .tuto-modal .tagline {
+      color: var(--fg); font-size: 15px; line-height: 1.6;
+      text-align: center; margin: 0 auto 18px; max-width: 640px;
+    }
+    .tuto-modal .tagline strong { color: var(--gold); }
+    .tuto-modal hr {
+      border: 0; border-top: 1px solid var(--border); margin: 18px 0 24px;
+    }
+    .tuto-cols {
+      display: grid;
+      grid-template-columns: 1fr 32px 1fr 32px 1fr;
+      gap: 0;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+    .tuto-col {
+      background: #0a0a0f;
+      border: 1px solid var(--gold);
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+      display: flex; flex-direction: column;
+    }
+    .tuto-col .icon {
+      display: flex; justify-content: center; margin-bottom: 10px;
+    }
+    .tuto-col .step-label {
+      color: var(--gold); font-size: 13px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .tuto-col h3 {
+      color: var(--gold); font-size: 17px; margin: 0 0 10px; font-weight: 700;
+    }
+    .tuto-col p {
+      color: var(--fg); font-size: 14px; line-height: 1.55;
+      margin: 0 0 8px;
+    }
+    .tuto-col p strong { color: var(--gold); }
+    .tuto-col ul {
+      list-style: none; padding: 0; margin: 6px 0 0;
+      color: var(--fg); font-size: 14px; line-height: 1.7;
+      text-align: left;
+    }
+    .tuto-col ul li::before {
+      content: "• "; color: var(--gold); font-weight: 700;
+    }
+    .tuto-arrow {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold); font-size: 28px; font-weight: 700;
+      user-select: none;
+    }
+    .tuto-footer {
+      text-align: center; margin-top: 8px;
+    }
+    .tuto-footer button.gold {
+      display: inline-block; width: auto;
+      padding: 16px 40px; font-size: 15px; margin: 0 auto;
+    }
+    .tuto-skip {
+      display: block; margin: 14px auto 0;
+      color: var(--dim); font-size: 12px; text-decoration: underline;
+      background: none; border: 0; cursor: pointer;
+    }
+    .tuto-skip:hover { color: var(--gold); }
+    @media (max-width: 820px) {
+      .tuto-cols {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .tuto-arrow { transform: rotate(90deg); margin: 0 auto; }
+    }
   </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/js-sha3@0.9.3/src/sha3.min.js"></script>
 </head>
 <body>
-  <header>
-    <div class="logo"><svg viewBox="18 18 72 72" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/></svg></div>
-    <h1>AUTHENTIX SIGN</h1>
-    <div class="tagline">
-      <span class="tag-line1">La seule signature numérique</span>
-      <span class="tag-main">mathématiquement<br>incontestable</span>
-      <span class="tag-line3">et inaliénable.</span>
-      <span class="tag-line4">Sans tiers de confiance.</span>
-    </div>
-    <p class="subtitle" style="margin-top:16px;">Vérification de document</p>
-  </header>
-
   <div class="container">
 
-    <div class="notice">
-      <strong>AUTHENTIX SIGN</strong> — La seule signature numérique mathématiquement incontestable et inaliénable. Sans tiers de confiance.
+    <header>
+      <div class="logo"><svg viewBox="18 18 72 72" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/></svg></div>
+      <h1>AUTHENTIX SIGN</h1>
+      <p class="subtitle">Envoyer un document à signer</p>
+    </header>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- SCREEN: LOGIN                                                   -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div id="screenLogin" class="screen active">
+      <div class="notice">
+        Votre document est chiffré sur votre poste avant d'être envoyé.<br>
+        Personne ne peut en lire le contenu — ni nos serveurs, ni aucun intermédiaire.
+      </div>
+      <section class="card">
+        <div class="field">
+          <label>Nom de votre organisation</label>
+          <input type="text" id="loginOrg" placeholder="Ex: Cabinet Dupont">
+        </div>
+        <div class="field">
+          <label>Mot de passe</label>
+          <input type="password" id="loginCode" placeholder="Votre mot de passe">
+        </div>
+      </section>
+      <button class="gold" id="btnLogin">ACCÉDER</button>
+      <p style="text-align:center;margin-top:16px;"><span class="back-link" id="btnShowCreate">Pas encore de compte ? Créer un espace</span></p>
+      <p style="text-align:center;margin-top:24px;"><button type="button" id="btnClearSession" style="background:transparent;border:1px solid var(--dim);color:var(--dim);font-size:12px;padding:8px 18px;border-radius:6px;cursor:pointer;letter-spacing:1px;">SE DÉCONNECTER / VIDER LA SESSION</button></p>
     </div>
 
-    <section class="card">
-      <div class="field">
-        <label>1. Document original</label>
-        <div class="file-input">
-          <input type="file" id="fileDoc" />
-          <span class="name placeholder" id="nameDoc">Choisir le fichier…</span>
-          <span class="pick">PARCOURIR</span>
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- SCREEN: CREATE ORG                                              -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div id="screenCreate" class="screen">
+      <span class="back-link" id="backToLogin">← Retour</span>
+      <p style="color:var(--gold);font-size:20px;font-weight:700;margin-bottom:16px;">Créer un compte organisation</p>
+      <section class="card">
+        <div class="field">
+          <label>Nom de l'organisation</label>
+          <input type="text" id="createOrg" placeholder="Ex: Cabinet Dupont">
         </div>
+        <div class="field">
+          <label>Email administrateur</label>
+          <input type="email" id="createEmail" placeholder="admin@example.com">
+        </div>
+        <div class="field">
+          <label>Confirmer l'email</label>
+          <input type="email" id="createEmailConfirm" placeholder="Retapez votre email">
+        </div>
+        <div class="field">
+          <label>Mot de passe</label>
+          <input type="password" id="createPassword" placeholder="6 caractères minimum">
+        </div>
+        <div class="field">
+          <label>Choisissez votre plan</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+            <label style="flex:1;min-width:140px;background:#0a0a0f;border:1px solid var(--gold);border-radius:8px;padding:14px;cursor:pointer;text-align:center;">
+              <input type="radio" name="plan" value="gratuit" checked style="display:none;">
+              <span style="color:var(--gold);font-weight:700;font-size:16px;">Gratuit</span><br>
+              <span style="color:var(--dim);font-size:12px;">5 envois / mois</span>
+            </label>
+            <label style="flex:1;min-width:140px;background:#0a0a0f;border:1px solid var(--gold);border-radius:8px;padding:14px;cursor:pointer;text-align:center;">
+              <input type="radio" name="plan" value="pro" style="display:none;">
+              <span style="color:var(--gold);font-weight:700;font-size:16px;">Pro</span><br>
+              <span style="color:var(--dim);font-size:12px;">100 envois / mois</span>
+            </label>
+            <label style="flex:1;min-width:140px;background:#0a0a0f;border:1px solid var(--gold);border-radius:8px;padding:14px;cursor:pointer;text-align:center;">
+              <input type="radio" name="plan" value="entreprise" style="display:none;">
+              <span style="color:var(--gold);font-weight:700;font-size:16px;">Entreprise</span><br>
+              <span style="color:var(--dim);font-size:12px;">Illimité</span>
+            </label>
+          </div>
+        </div>
+      </section>
+      <button class="gold" id="btnCreate">CRÉER MON COMPTE</button>
+      <div id="createSuccess" style="display:none;" class="success">
+        <h2>Compte créé ✓</h2>
+        <p style="color:var(--dim);font-size:14px;">Un email de confirmation vous a été envoyé.<br>Votre compte sera activé après confirmation.</p>
+        <button class="outline" id="btnBackToLoginAfterCreate" style="margin-top:12px;">RETOUR À LA CONNEXION</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- SCREEN: DASHBOARD                                               -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div id="screenDashboard" class="screen">
+      <p style="color:var(--dim);font-size:14px;">Connecté : <strong id="dashOrgName" style="color:var(--fg);"></strong> <span class="back-link" id="btnLogout" style="margin-left:12px;font-size:12px;">Déconnexion</span></p>
+
+      <div class="dash-grid">
+        <div class="dash-stat card"><div class="num" id="dashTotal">0</div><div class="label">Envoyés</div></div>
+        <div class="dash-stat card"><div class="num" id="dashContacts">0</div><div class="label">Destinataires</div></div>
       </div>
 
-      <div class="field">
-        <label>2. Certificat (.cert.json)</label>
-        <div class="file-input">
-          <input type="file" id="fileCert" accept=".json,application/json" />
-          <span class="name placeholder" id="nameCert">Choisir le fichier…</span>
-          <span class="pick">PARCOURIR</span>
-        </div>
+      <button class="gold" id="btnDashSend">ENVOYER UN DOCUMENT</button>
+      <button class="outline" id="btnDashContacts">MES DESTINATAIRES</button>
+
+      <div style="margin-top:24px;">
+        <p style="color:var(--gold);font-size:14px;text-transform:uppercase;letter-spacing:1px;">Historique des envois</p>
+        <div id="historyList"></div>
+        <p id="historyEmpty" style="color:var(--dim);font-size:13px;display:none;">Aucun envoi pour le moment.</p>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- SCREEN: CONTACTS                                                -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div id="screenContacts" class="screen">
+      <span class="back-link" id="backToDash">← Tableau de bord</span>
+      <p class="title-contacts">Mes destinataires</p>
+      <div id="contactsList"></div>
+      <p id="contactsEmpty" style="color:var(--dim);font-size:13px;display:none;">Aucun destinataire enregistré.</p>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- SCREEN: SEND FLOW                                               -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div id="screenSend" class="screen">
+      <span class="back-link" id="backToDashFromSend">← Tableau de bord</span>
+
+      <div class="notice">
+        Votre document est chiffré sur votre poste avant d'être envoyé.<br>
+        Personne ne peut en lire le contenu — ni nos serveurs, ni aucun intermédiaire.
       </div>
 
-      <div class="field">
-        <label>3. Journal (optionnel)</label>
-        <div class="file-input">
-          <input type="file" id="fileJournal" accept=".json,application/json" />
-          <span class="name placeholder" id="nameJournal">Choisir le fichier…</span>
-          <span class="pick">PARCOURIR</span>
-        </div>
-        <p class="hint">Active la vérification de cohérence τ et de l'intégrité de chaîne.</p>
+      <!-- Progress indicator -->
+      <div class="stepper" id="stepper">
+        <div class="dot" data-n="1">1</div>
+        <div class="bar"></div>
+        <div class="dot" data-n="2">2</div>
+        <div class="bar"></div>
+        <div class="dot" data-n="3">3</div>
       </div>
 
-      <button class="gold" id="btnVerify" disabled>VÉRIFIER</button>
-    </section>
+      <!-- STEP 1: Invite recipient -->
+      <div id="step1" class="step active">
+        <div class="tuto-card">
+          <div class="tuto-head">
+            <div class="step-num">1</div>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+            </div>
+            <h2>Inviter votre destinataire</h2>
+            <p class="desc">Pour recevoir votre document, votre destinataire doit d'abord installer l'app AUTHENTIX SIGN. Saisissez ses coordonnées ci-dessous pour lui envoyer le lien de téléchargement.</p>
+          </div>
 
-    <div id="errorBox"></div>
-    <section class="card result" id="resultCard" style="display:none;"></section>
-    <button class="outline" id="btnPdf" style="display:none;">TÉLÉCHARGER RAPPORT PDF</button>
+          <div class="field">
+            <label>Nom du destinataire</label>
+            <input type="text" id="recipientName" placeholder="Ex: Alice Martin">
+          </div>
+          <div class="field">
+            <label>Email du destinataire</label>
+            <input type="email" id="recipientEmail" placeholder="alice@email.com">
+          </div>
+
+          <button class="gold" id="btnInvite">ENVOYER LE LIEN DE L'APP &#10140;</button>
+          <p id="inviteSuccess" style="display:none;color:var(--green);font-size:15px;font-weight:600;margin-top:12px;text-align:center;"></p>
+          <p id="inviteError" style="display:none;color:var(--red);font-size:14px;margin-top:10px;text-align:center;"></p>
+        </div>
+
+        <div class="invite-box" style="margin-top:20px;">
+          <p>Votre destinataire doit installer l'app AUTHENTIX SIGN et vous adresser sa clé publique.</p>
+        </div>
+
+        <button class="outline" id="btnGotoStep2">J'AI REÇU LA CLÉ PUBLIQUE</button>
+      </div>
+
+      <!-- STEP 2: Enter public key -->
+      <div id="step2" class="step">
+        <div class="tuto-card">
+          <div class="tuto-head">
+            <div class="step-num">2</div>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h10M18 12v4M22 12v3"/></svg>
+            </div>
+            <h2>Saisir la clé publique</h2>
+            <p class="desc">Votre destinataire vous a envoyé sa clé publique (64 caractères). Collez-la ci-dessous — elle servira à chiffrer le document pour que lui seul puisse le lire.</p>
+          </div>
+
+          <div class="field">
+            <label>Clé publique du destinataire</label>
+            <input type="text" id="pubkeyInput" placeholder="Collez ici la clé publique envoyée par votre destinataire" maxlength="64" autocomplete="off" spellcheck="false">
+          </div>
+          <div id="pubkeyStatus" style="display:none;">
+            <p style="color:var(--green);margin:4px 0 8px;font-size:14px;">Clé reçue ✓</p>
+          </div>
+          <button class="outline small" id="btnPickContact">MES DESTINATAIRES</button>
+          <div id="saveContactBox" style="display:none;margin-top:8px;">
+            <button class="outline small" id="btnSaveContact">SAUVEGARDER CE DESTINATAIRE</button>
+          </div>
+        </div>
+
+        <button class="gold" id="btnStepKeyNext" disabled>VALIDER &#10140;</button>
+        <button class="outline" id="btnStepKeyBack">&#8592; RETOUR</button>
+      </div>
+
+      <!-- STEP 3: Send document -->
+      <div id="step3" class="step">
+        <div class="tuto-card">
+          <div class="tuto-head">
+            <div class="step-num">3</div>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>
+            </div>
+            <h2>Envoyer le document</h2>
+            <p class="desc">Sélectionnez le PDF à signer. Il sera chiffré sur votre appareil avant l'envoi — personne d'autre que votre destinataire ne pourra le lire.</p>
+          </div>
+
+          <div class="field">
+            <label>Document PDF</label>
+            <div class="file-input">
+              <span class="name"><span class="placeholder">Sélectionnez un fichier PDF</span></span>
+              <span class="pick">PARCOURIR</span>
+              <input type="file" id="pdfInput" accept=".pdf">
+            </div>
+          </div>
+          <div id="docStatus" style="display:none;">
+            <p style="color:var(--green);margin:8px 0 0;font-size:15px;">Document prêt ✓</p>
+            <p class="hash-display" id="docHashDisplay"></p>
+          </div>
+
+          <!-- Sender fields hidden — auto-filled from currentOrg -->
+          <input type="hidden" id="senderName">
+          <input type="hidden" id="replyTo">
+
+          <div class="field" style="margin-top:22px;">
+            <label>SMS de retour (optionnel)</label>
+            <input type="tel" id="replySms" placeholder="+33 6 ...">
+          </div>
+          <div class="field">
+            <label>Date d'expiration (optionnel)</label>
+            <input type="date" id="expiresDate">
+          </div>
+        </div>
+
+        <button class="gold" id="btnStepDocSend" disabled>CHIFFRER ET ENVOYER</button>
+        <button class="outline" id="btnStepDocBack">&#8592; RETOUR</button>
+      </div>
+
+      <!-- STEP 4: Processing -->
+      <div id="step4" class="step">
+        <section class="card" style="text-align:center;">
+          <div class="spinner"></div>
+          <p id="processStatus" style="margin:8px 0 0;font-size:15px;">Chiffrement en cours...</p>
+        </section>
+      </div>
+
+      <!-- STEP 5: QR Result -->
+      <div id="step5" class="step">
+        <div class="success">
+          <h2>Document chiffré et envoyé ✓</h2>
+          <p style="color:var(--dim);font-size:14px;">Envoyez ce QR au destinataire</p>
+        </div>
+
+        <div id="qr-container"></div>
+
+        <button class="outline" id="btnDownloadQr">TÉLÉCHARGER LE QR</button>
+        <button class="gold" id="btnSendEmail" style="margin-top:10px;">ENVOYER PAR EMAIL</button>
+
+        <p class="instructions" id="sendInstructions"></p>
+        <p class="expire-info" id="expireInfo"></p>
+
+        <div style="margin-top:16px;">
+          <label style="color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px;">Lien direct</label>
+          <input type="text" id="deepLinkUrl" readonly style="width:100%;background:#0a0a0f;border:1px solid var(--gold);border-radius:8px;padding:10px 14px;color:var(--fg);font-size:13px;font-family:monospace;margin-top:4px;" onclick="this.select()">
+        </div>
+
+        <button class="outline" id="btnNewSend" style="margin-top:20px;">ENVOYER UN AUTRE DOCUMENT</button>
+      </div>
+    </div>
+
+    <div id="errorBox" class="error" style="display:none;"></div>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- ONBOARDING TUTORIAL MODAL                                       -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div id="tutoOverlay" class="tuto-overlay" role="dialog" aria-modal="true" aria-labelledby="tutoTitle">
+      <div class="tuto-modal">
+        <div class="tuto-logo">
+          <div class="box"><svg viewBox="18 18 72 72" width="44" height="44" xmlns="http://www.w3.org/2000/svg"><path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/></svg></div>
+        </div>
+        <h2 id="tutoTitle">AUTHENTIX SIGN</h2>
+        <p class="tagline">
+          La seule signature numérique <strong>mathématiquement incontestable</strong> et <strong>inaliénable</strong>.<br>
+          Sans tiers de confiance.
+        </p>
+
+        <hr>
+
+        <div class="tuto-cols">
+          <!-- Column 1 -->
+          <div class="tuto-col">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h10M18 12v4M22 12v3"/></svg>
+            </div>
+            <div class="step-label">Étape 1</div>
+            <h3>Demandez la clé publique</h3>
+            <p>La clé publique est l'<strong>IBAN numérique</strong> de votre destinataire.</p>
+            <p>Il vous la transmet en un clic depuis son app <strong>AUTHENTIX SIGN</strong>.</p>
+          </div>
+
+          <div class="tuto-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </div>
+
+          <!-- Column 2 -->
+          <div class="tuto-col">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>
+            </div>
+            <div class="step-label">Étape 2</div>
+            <h3>Envoyez le document chiffré</h3>
+            <p>Le PDF est chiffré <strong>sur votre appareil</strong>.</p>
+            <p><strong>Aucun serveur</strong> — ni le nôtre, ni aucun intermédiaire — ne voit le contenu.</p>
+          </div>
+
+          <div class="tuto-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </div>
+
+          <!-- Column 3 -->
+          <div class="tuto-col">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z"/><path d="M8 12l3 3 5-6"/></svg>
+            </div>
+            <div class="step-label">Étape 3</div>
+            <h3>Recevez la preuve</h3>
+            <p>Après signature, vous recevez :</p>
+            <ul>
+              <li>Notification ✅</li>
+              <li>Certificat <strong>.cert</strong></li>
+              <li>Journal <strong>VCH</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tuto-footer">
+          <button class="gold" id="btnTutoStart">COMMENCER &#10140;</button>
+          <button type="button" class="tuto-skip" id="btnTutoSkip">Ne plus afficher</button>
+        </div>
+      </div>
+    </div>
 
     <footer>
-      Vérifié par <strong>AUTHENTIX SIGN</strong> · <a href="https://authentix-sign.tech">authentix-sign.tech</a>
+      <p>AUTHENTIX SIGN &mdash; <a href="https://authentix-sign.tech">authentix-sign.tech</a></p>
+      <p>&copy; AION ASEMANTIX</p>
     </footer>
   </div>
 
-  <!-- SHA3-256 via js-sha3 (UMD global `sha3_256`) -->
-  <script src="https://cdn.jsdelivr.net/npm/js-sha3@0.9.3/build/sha3.min.js"></script>
-  <!-- Ed25519 via tweetnacl (UMD global `nacl`) — équivalent noble-ed25519, UMD-compatible -->
-  <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"></script>
-  <!-- jsPDF (UMD global `window.jspdf.jsPDF`) -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script type="module">
+  import { edwardsToMontgomeryPub, x25519 } from 'https://cdn.jsdelivr.net/npm/@noble/curves@1.4.0/ed25519/+esm';
+  import { hkdf } from 'https://cdn.jsdelivr.net/npm/@noble/hashes@1.4.0/hkdf/+esm';
+  import { sha256 } from 'https://cdn.jsdelivr.net/npm/@noble/hashes@1.4.0/sha256/+esm';
+  import QRCode from 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm';
 
-  <script>
-  (function () {
-    "use strict";
+  // ── HTTPS redirect ──────────────────────────────────────────────────
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    location.replace('https:' + location.href.substring(location.protocol.length));
+  }
 
-    // ── State ─────────────────────────────────────────────────────────────
-    const state = {
-      docBytes: null,
-      docName: "",
-      certJson: null,
-      certText: "",
-      journalJson: null,
-      journalText: "",
-      lastReport: null,
-    };
+  // ── State ───────────────────────────────────────────────────────────
+  let pdfBytes = null;
+  let docHash = '';
+  let currentOrg = null; // { nom, email, code, contacts:[], envois:[] }
+  const UPLOAD_URL = 'https://authentix-relay.asemantix.workers.dev/upload';
 
-    // ── DOM ───────────────────────────────────────────────────────────────
-    const $ = (id) => document.getElementById(id);
-    const fileDoc = $("fileDoc");
-    const fileCert = $("fileCert");
-    const fileJournal = $("fileJournal");
-    const nameDoc = $("nameDoc");
-    const nameCert = $("nameCert");
-    const nameJournal = $("nameJournal");
-    const btnVerify = $("btnVerify");
-    const btnPdf = $("btnPdf");
-    const resultCard = $("resultCard");
-    const errorBox = $("errorBox");
-
-    // ── File inputs ───────────────────────────────────────────────────────
-    fileDoc.addEventListener("change", async (e) => {
-      const f = e.target.files[0];
-      if (!f) return;
-      state.docBytes = new Uint8Array(await f.arrayBuffer());
-      state.docName = f.name;
-      nameDoc.textContent = f.name;
-      nameDoc.classList.remove("placeholder");
-      updateButton();
-    });
-
-    fileCert.addEventListener("change", async (e) => {
-      const f = e.target.files[0];
-      if (!f) return;
-      state.certText = await f.text();
-      try {
-        state.certJson = JSON.parse(state.certText);
-      } catch (_) {
-        showError("Le certificat n'est pas un JSON valide.");
-        state.certJson = null;
-      }
-      nameCert.textContent = f.name;
-      nameCert.classList.remove("placeholder");
-      updateButton();
-    });
-
-    fileJournal.addEventListener("change", async (e) => {
-      const f = e.target.files[0];
-      if (!f) return;
-      state.journalText = await f.text();
-      try {
-        state.journalJson = JSON.parse(state.journalText);
-      } catch (_) {
-        showError("Le journal n'est pas un JSON valide.");
-        state.journalJson = null;
-      }
-      nameJournal.textContent = f.name;
-      nameJournal.classList.remove("placeholder");
-    });
-
-    function updateButton() {
-      btnVerify.disabled = !(state.docBytes && state.certJson);
+  // ── Helpers ─────────────────────────────────────────────────────────
+  function hexEncode(bytes) { return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''); }
+  function hexDecode(hex) {
+    const a = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) a[i/2] = parseInt(hex.substring(i, i+2), 16);
+    return a;
+  }
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+  function showStep(n) {
+    // Guards — cannot jump to a step without its prerequisites
+    if (n === 2 || n === 3) {
+      const rName = (document.getElementById('recipientName')?.value || '').trim();
+      const rEmail = (document.getElementById('recipientEmail')?.value || '').trim();
+      if (!rName || !rEmail) { n = 1; }
     }
+    if (n === 3) {
+      const pk = (document.getElementById('pubkeyInput')?.value || '').trim();
+      if (!/^[0-9a-fA-F]{64}$/.test(pk)) { n = 2; }
+    }
+    document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+    document.getElementById('step'+n).classList.add('active');
+    // Update stepper indicator (only visible for user-facing steps 1–3)
+    const stepper = document.getElementById('stepper');
+    if (stepper) {
+      const dots = stepper.querySelectorAll('.dot');
+      const bars = stepper.querySelectorAll('.bar');
+      dots.forEach((d, i) => {
+        d.classList.remove('active', 'done');
+        if (i + 1 < n && n <= 3) d.classList.add('done');
+        else if (i + 1 === n) d.classList.add('active');
+      });
+      bars.forEach((b, i) => {
+        b.classList.remove('done');
+        if (i + 1 < n && n <= 3) b.classList.add('done');
+      });
+      // Hide stepper during processing/result (steps 4–5)
+      stepper.style.display = n >= 4 ? 'none' : 'flex';
+    }
+  }
+  function showError(msg) { const b=document.getElementById('errorBox'); b.textContent=msg; b.style.display='block'; }
+  function hideError() { document.getElementById('errorBox').style.display='none'; }
 
-    btnVerify.addEventListener("click", runVerification);
+  // ── Backend API ─────────────────────────────────────────────────────
+  const API = 'https://authentix-backend.asemantix.workers.dev';
+  let authToken = localStorage.getItem('authentix_token') || null;
 
-    btnPdf.addEventListener("click", () => {
-      if (state.lastReport) generatePdf(state.lastReport);
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (authToken) opts.headers['Authorization'] = 'Bearer ' + authToken;
+    if (body) opts.body = JSON.stringify(body);
+    const resp = await fetch(API + path, opts);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Erreur serveur');
+    return data;
+  }
+
+  // ── Global error handlers — surface any runtime crash in UI ────────
+  function surfaceError(msg) {
+    const b = document.getElementById('errorBox');
+    if (b) { b.textContent = 'Erreur : ' + msg; b.style.display = 'block'; }
+    console.error('[CRASH]', msg);
+  }
+  window.addEventListener('error', (e) => {
+    surfaceError((e.error && e.error.message) || e.message || 'Erreur inconnue');
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    surfaceError('Promise rejetée : ' + ((e.reason && e.reason.message) || e.reason || 'inconnue'));
+  });
+
+  // ── Onboarding tutorial ────────────────────────────────────────────
+  function maybeShowTutorial() {
+    if (localStorage.getItem('tutorial_seen') === '1') return;
+    if (!currentOrg) return; // safety: never show if not logged in
+    document.getElementById('tutoOverlay').classList.add('active');
+  }
+  function closeTutorial(markSeen) {
+    document.getElementById('tutoOverlay').classList.remove('active');
+    if (markSeen) localStorage.setItem('tutorial_seen', '1');
+    // After tuto: go straight to send flow step 1 if logged in
+    if (currentOrg) {
+      showScreen('screenSend');
+      showStep(1);
+      // Pre-fill sender from org (in case btnDashSend didn't run first)
+      const senderName = document.getElementById('senderName');
+      const replyTo = document.getElementById('replyTo');
+      if (senderName && !senderName.value) senderName.value = currentOrg.nom || '';
+      if (replyTo && !replyTo.value) replyTo.value = currentOrg.email || '';
+    } else {
+      showScreen('screenLogin');
+    }
+  }
+  document.getElementById('btnTutoStart').addEventListener('click', () => closeTutorial(false));
+  document.getElementById('btnTutoSkip').addEventListener('click', () => closeTutorial(true));
+
+  // Clear session from login screen — hard reload without history entry
+  document.getElementById('btnClearSession')?.addEventListener('click', () => {
+    localStorage.removeItem('authentix_token');
+    localStorage.removeItem('tutorial_seen');
+    location.replace(location.pathname);
+  });
+
+  // Blinder l'état initial : forcer screenLogin + step1 actifs, TOUT le reste caché.
+  // Défense contre tout état résiduel (cache bfcache, manipulation DOM extérieure, etc.)
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+  document.getElementById('screenLogin').classList.add('active');
+  document.getElementById('step1').classList.add('active');
+
+  // ── SCREEN: LOGIN ──────────────────────────────────────────────────
+  document.getElementById('btnLogin').addEventListener('click', async () => {
+    const nom = document.getElementById('loginOrg').value.trim();
+    const password = document.getElementById('loginCode').value.trim();
+    if (!nom || !password) { showError('Remplissez tous les champs.'); return; }
+    hideError();
+    try {
+      const data = await api('POST', '/auth/login', { nom, password });
+      authToken = data.token;
+      localStorage.setItem('authentix_token', authToken);
+      currentOrg = data.org;
+      showDashboard({ fromLogin: true });
+    } catch (e) { showError(e.message); }
+  });
+
+  // Auto-reconnect if token exists — goes straight to dashboard, no tutorial
+  if (authToken) {
+    api('GET', '/auth/me').then(org => {
+      currentOrg = org;
+      showDashboard();
+    }).catch(() => {
+      authToken = null; localStorage.removeItem('authentix_token');
     });
+  }
 
-    // ── Verification core ─────────────────────────────────────────────────
+  document.getElementById('btnShowCreate').addEventListener('click', () => { hideError(); showScreen('screenCreate'); });
+  document.getElementById('backToLogin').addEventListener('click', () => { hideError(); showScreen('screenLogin'); });
 
-    async function runVerification() {
-      clearError();
-      resultCard.style.display = "none";
-      btnPdf.style.display = "none";
+  // ── SCREEN: CREATE ─────────────────────────────────────────────────
+  // Plan radio selection styling — apply initial style + update on click
+  function updatePlanStyles() {
+    document.querySelectorAll('input[name="plan"]').forEach(r => {
+      const label = r.closest('label');
+      if (r.checked) {
+        label.style.borderColor = '#22c55e';
+        label.style.borderWidth = '2px';
+        label.style.padding = '13px';
+      } else {
+        label.style.borderColor = '#c9a84c';
+        label.style.borderWidth = '1px';
+        label.style.padding = '14px';
+      }
+    });
+  }
+  document.querySelectorAll('input[name="plan"]').forEach(radio => {
+    radio.addEventListener('change', updatePlanStyles);
+    // Click on label also needs to work — handled natively by browser
+  });
+  // Apply initial style (Gratuit is checked by default)
+  updatePlanStyles();
 
-      const cert = state.certJson;
-      const doc = state.docBytes;
+  document.getElementById('btnCreate').addEventListener('click', async () => {
+    const nom = document.getElementById('createOrg').value.trim();
+    const email = document.getElementById('createEmail').value.trim();
+    const emailConfirm = document.getElementById('createEmailConfirm').value.trim();
+    const password = document.getElementById('createPassword').value;
+    const plan = document.querySelector('input[name="plan"]:checked')?.value || 'gratuit';
+    if (!nom || !email || !emailConfirm || !password) { showError('Remplissez tous les champs.'); return; }
+    if (email !== emailConfirm) { showError('Les deux adresses email ne correspondent pas.'); return; }
+    if (password.length < 6) { showError('Mot de passe : 6 caractères minimum.'); return; }
+    hideError();
+    try {
+      await api('POST', '/auth/register', { nom, email, password, plan });
+      document.getElementById('btnCreate').style.display = 'none';
+      document.getElementById('createSuccess').style.display = 'block';
+    } catch (e) { showError(e.message); }
+  });
 
-      // (1) SHA3-256(document)
-      const docHashHex = sha3_256(doc);
-      const hashOk = docHashHex.toLowerCase() === (cert.document_hash || "").toLowerCase();
+  document.getElementById('btnBackToLoginAfterCreate')?.addEventListener('click', () => {
+    document.getElementById('btnCreate').style.display = 'block';
+    document.getElementById('createSuccess').style.display = 'none';
+    hideError(); showScreen('screenLogin');
+  });
 
-      // (2) Ed25519 — verify block signature
-      let sigOk = false;
-      let sigError = null;
+  // ── SCREEN: DASHBOARD ──────────────────────────────────────────────
+  async function showDashboard({ fromLogin = false } = {}) {
+    showScreen('screenDashboard');
+    document.getElementById('dashOrgName').textContent = currentOrg.nom;
+    // Tutorial is only triggered on explicit login, never on auto-reconnect
+    // or on "← Tableau de bord" navigation
+    if (fromLogin) maybeShowTutorial();
+    try {
+      const dash = await api('GET', '/dashboard');
+      document.getElementById('dashTotal').textContent = dash.envois_total;
+      document.getElementById('dashContacts').textContent = dash.contacts_total;
+      const envoisData = await api('GET', '/envois');
+      renderHistory(envoisData.envois);
+    } catch (e) { showError(e.message); }
+  }
+  function renderHistory(envois) {
+    const list = document.getElementById('historyList');
+    const empty = document.getElementById('historyEmpty');
+    list.innerHTML = '';
+    if (!envois || envois.length === 0) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    for (const e of envois) {
+      const d = document.createElement('div');
+      d.className = 'history-item';
+      d.innerHTML = '<div class="dest">' + esc(e.destinataire_nom) + '</div>'
+        + '<div class="hash">' + esc((e.doc_hash || '').substring(0,16)) + '…</div>'
+        + '<div class="date">' + esc(e.created_at || '') + ' — ' + esc(e.statut) + '</div>';
+      list.appendChild(d);
+    }
+  }
+  function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+  document.getElementById('btnDashSend').addEventListener('click', () => {
+    stopKeyPolling();
+    currentKeyToken = null;
+    hideInviteError(); hideInviteSuccess();
+    showScreen('screenSend');
+    showStep(1);
+    pdfBytes = null; docHash = '';
+    document.getElementById('btnStepDocSend').disabled = true;
+    document.getElementById('docStatus').style.display = 'none';
+    document.getElementById('recipientName').value = '';
+    document.getElementById('recipientEmail').value = '';
+    document.getElementById('pubkeyInput').value = '';
+    document.getElementById('pubkeyStatus').style.display = 'none';
+    // Pre-fill sender from org
+    document.getElementById('senderName').value = currentOrg.nom;
+    document.getElementById('replyTo').value = currentOrg.email;
+  });
+  document.getElementById('btnDashContacts').addEventListener('click', () => { showContacts(); });
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    stopKeyPolling();
+    currentKeyToken = null;
+    try { await api('POST', '/auth/logout'); } catch {}
+    authToken = null; currentOrg = null;
+    localStorage.removeItem('authentix_token');
+    hideError(); showScreen('screenLogin');
+  });
+  document.getElementById('backToDashFromSend').addEventListener('click', () => { hideError(); showDashboard(); });
+
+  // ── SCREEN: CONTACTS ───────────────────────────────────────────────
+  let contactsCache = [];
+  async function showContacts() {
+    showScreen('screenContacts');
+    try {
+      const data = await api('GET', '/destinataires');
+      contactsCache = data.destinataires || [];
+      renderContacts();
+    } catch (e) { showError(e.message); }
+  }
+  function renderContacts() {
+    const list = document.getElementById('contactsList');
+    const empty = document.getElementById('contactsEmpty');
+    list.innerHTML = '';
+    if (contactsCache.length === 0) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    contactsCache.forEach((c, i) => {
+      const d = document.createElement('div');
+      d.className = 'contact-item';
+      d.innerHTML = '<div class="name">' + esc(c.nom) + '</div>'
+        + '<div class="email">' + esc(c.email) + '</div>'
+        + '<div class="key">' + esc(c.cle_publique || '(pas de clé)') + '</div>'
+        + '<div style="margin-top:8px;">'
+        + '<button class="outline small btn-use" data-i="'+i+'">UTILISER</button>'
+        + '<button class="outline small btn-update" data-i="'+i+'">METTRE À JOUR LA CLÉ</button>'
+        + '<button class="outline small danger btn-del" data-id="'+c.id+'">SUPPRIMER</button>'
+        + '</div>';
+      list.appendChild(d);
+    });
+    list.querySelectorAll('.btn-use').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const c = contactsCache[+btn.dataset.i];
+        document.getElementById('pubkeyInput').value = c.cle_publique || '';
+        document.getElementById('recipientName').value = c.nom;
+        document.getElementById('recipientEmail').value = c.email;
+        showScreen('screenSend'); showStep(2); validateStep2();
+      });
+    });
+    list.querySelectorAll('.btn-update').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const c = contactsCache[+btn.dataset.i];
+        const newKey = prompt('Nouvelle clé publique hex pour ' + c.nom + ' :', c.cle_publique || '');
+        if (newKey && /^[0-9a-fA-F]{64}$/.test(newKey.trim())) {
+          try {
+            await api('POST', '/destinataires', { nom: c.nom, email: c.email, cle_publique: newKey.trim() });
+            await showContacts();
+          } catch (e) { showError(e.message); }
+        } else if (newKey !== null) { alert('Clé invalide (64 caractères hex requis).'); }
+      });
+    });
+    list.querySelectorAll('.btn-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (confirm('Supprimer ce destinataire ?')) {
+          try {
+            await api('DELETE', '/destinataires/' + btn.dataset.id);
+            await showContacts();
+          } catch (e) { showError(e.message); }
+        }
+      });
+    });
+  }
+  document.getElementById('backToDash').addEventListener('click', () => { showDashboard(); });
+
+  // ── STEP 1: Invite recipient ───────────────────────────────────────
+  function showInviteError(msg) {
+    const el = document.getElementById('inviteError');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideInviteError() {
+    document.getElementById('inviteError').style.display = 'none';
+  }
+  function showInviteSuccess(msg) {
+    const el = document.getElementById('inviteSuccess');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideInviteSuccess() {
+    document.getElementById('inviteSuccess').style.display = 'none';
+  }
+  let keyPollTimer = null;
+  let currentKeyToken = null;
+
+  function stopKeyPolling() {
+    if (keyPollTimer) { clearInterval(keyPollTimer); keyPollTimer = null; }
+  }
+
+  async function pollKeyRequest() {
+    if (!currentKeyToken) return;
+    try {
+      const data = await api('GET', '/key-request/' + currentKeyToken);
+      if (data.status === 'received' && data.public_key) {
+        stopKeyPolling();
+        showInviteSuccess('🔑 Clé reçue ✅ — passage à l\'étape 2…');
+        // Pre-fill key & auto-advance to step 2
+        document.getElementById('pubkeyInput').value = data.public_key;
+        setTimeout(() => {
+          showStep(2);
+          validateStep2();
+        }, 900);
+      }
+    } catch (e) {
+      // Silent — transient network errors shouldn't break the flow
+      console.log('[poll] error:', e.message);
+    }
+  }
+
+  document.getElementById('btnInvite').addEventListener('click', async () => {
+    const rEmail = document.getElementById('recipientEmail').value.trim();
+    const rName = document.getElementById('recipientName').value.trim();
+    if (!rName || !rEmail) {
+      showInviteError('Veuillez renseigner le nom ET l\'email du destinataire avant d\'envoyer le lien.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rEmail)) {
+      showInviteError('Email du destinataire invalide.');
+      return;
+    }
+    hideInviteError();
+    hideInviteSuccess();
+    stopKeyPolling();
+    const btn = document.getElementById('btnInvite');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Envoi en cours...';
+    try {
+      // 1. Send invitation email AND 2. Create key-request in parallel
+      const [, keyReq] = await Promise.all([
+        api('POST', '/send-invite', { recipient_name: rName, recipient_email: rEmail }),
+        api('POST', '/key-request', { recipient_name: rName, recipient_email: rEmail }),
+      ]);
+      currentKeyToken = keyReq.token;
+      btn.textContent = originalLabel;
+      // Button stays disabled to prevent double-send; confirmation shown below
+      showInviteSuccess('✅ Invitation envoyée à ' + rName + '. En attente de sa clé publique…');
+      // Start polling every 10s
+      pollKeyRequest();
+      keyPollTimer = setInterval(pollKeyRequest, 10000);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      showInviteError('Échec de l\'envoi : ' + e.message);
+    }
+  });
+  // Hide error + success + stop polling + re-enable button as soon as user
+  // edits the fields (allows sending to a different recipient)
+  ['recipientName','recipientEmail'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      hideInviteError();
+      hideInviteSuccess();
+      stopKeyPolling();
+      currentKeyToken = null;
+      const btn = document.getElementById('btnInvite');
+      if (btn.disabled) btn.disabled = false;
+    });
+  });
+  // Stop polling when navigating away from send screen
+  document.getElementById('backToDashFromSend').addEventListener('click', stopKeyPolling);
+
+  document.getElementById('btnGotoStep2').addEventListener('click', () => {
+    const rName = document.getElementById('recipientName').value.trim();
+    const rEmail = document.getElementById('recipientEmail').value.trim();
+    if (!rName || !rEmail) { showError('Renseignez le nom et l\'email du destinataire.'); return; }
+    hideError();
+    stopKeyPolling();
+    showStep(2);
+    validateStep2();
+  });
+
+  // ── STEP 2 ↔ STEP 3 navigation ─────────────────────────────────────
+  document.getElementById('btnStepKeyBack').addEventListener('click', () => { hideError(); showStep(1); });
+  document.getElementById('btnStepKeyNext').addEventListener('click', () => {
+    const pk = document.getElementById('pubkeyInput').value.trim();
+    if (!/^[0-9a-fA-F]{64}$/.test(pk)) { showError('Clé publique invalide (64 caractères hex).'); return; }
+    hideError();
+    showStep(3);
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    if (!document.getElementById('expiresDate').value) {
+      document.getElementById('expiresDate').value = d.toISOString().split('T')[0];
+    }
+    validateStepDoc();
+  });
+  document.getElementById('btnStepDocBack').addEventListener('click', () => { hideError(); showStep(2); });
+
+  // ── STEP 3: PDF selection ──────────────────────────────────────────
+  const pdfInput = document.getElementById('pdfInput');
+
+  pdfInput.addEventListener('change', async () => {
+    hideError();
+    const file = pdfInput.files[0];
+    if (!file) return;
+    pdfInput.parentElement.querySelector('.name').textContent = file.name;
+    const buf = await file.arrayBuffer();
+    pdfBytes = new Uint8Array(buf);
+    docHash = sha3_256(pdfBytes); // eslint-disable-line no-undef
+    document.getElementById('docHashDisplay').textContent = 'Hash : ' + docHash.substring(0,16) + '…';
+    document.getElementById('docStatus').style.display = 'block';
+    validateStepDoc();
+  });
+
+  function validateStepDoc() {
+    const name = document.getElementById('senderName').value.trim();
+    const email = document.getElementById('replyTo').value.trim();
+    document.getElementById('btnStepDocSend').disabled = !(pdfBytes && name && email);
+  }
+  ['senderName','replyTo'].forEach(id => document.getElementById(id).addEventListener('input', validateStepDoc));
+
+  // ── STEP 2: Public key validation ──────────────────────────────────
+  const pubkeyInput = document.getElementById('pubkeyInput');
+  const btnStepKeyNext = document.getElementById('btnStepKeyNext');
+
+  function validateStep2() {
+    const pk = pubkeyInput.value.trim();
+    const rName = document.getElementById('recipientName').value.trim();
+    const rEmail = document.getElementById('recipientEmail').value.trim();
+    const validPk = /^[0-9a-fA-F]{64}$/.test(pk);
+    document.getElementById('pubkeyStatus').style.display = validPk ? 'block' : 'none';
+    btnStepKeyNext.disabled = !validPk;
+    // Show save contact button when key + recipient fields are valid
+    document.getElementById('saveContactBox').style.display = (validPk && rName && rEmail) ? 'block' : 'none';
+  }
+  ['pubkeyInput','recipientName','recipientEmail'].forEach(id => {
+    document.getElementById(id).addEventListener('input', validateStep2);
+  });
+
+  // Pick contact button in step 2
+  document.getElementById('btnPickContact').addEventListener('click', () => { showContacts(); });
+
+  // Save contact button
+  document.getElementById('btnSaveContact').addEventListener('click', async () => {
+    if (!currentOrg) return;
+    const nom = document.getElementById('recipientName').value.trim();
+    const email = document.getElementById('recipientEmail').value.trim();
+    const cle = pubkeyInput.value.trim();
+    if (!nom || !email || !cle) return;
+    try {
+      await api('POST', '/destinataires', { nom, email, cle_publique: cle });
+      const box = document.getElementById('saveContactBox');
+      box.innerHTML = '<p style="color:var(--green);font-size:13px;margin:4px 0;">Destinataire sauvegardé ✓</p>';
+      setTimeout(() => { box.innerHTML = '<button class="outline small" id="btnSaveContact">SAUVEGARDER CE DESTINATAIRE</button>'; }, 2000);
+    } catch (e) { showError(e.message); }
+  });
+
+  // ── STEP 3 → Processing: Encrypt & upload ─────────────────────────
+  document.getElementById('btnStepDocSend').addEventListener('click', async () => {
+    hideError(); showStep(4);
+    try {
+      const alicePubHex = pubkeyInput.value.trim();
+      const senderName = document.getElementById('senderName').value.trim();
+      const replyTo = document.getElementById('replyTo').value.trim();
+      const recipientName = document.getElementById('recipientName').value.trim();
+      const recipientEmail = document.getElementById('recipientEmail').value.trim();
+      const replySms = document.getElementById('replySms').value.trim();
+      const expiresDate = document.getElementById('expiresDate').value;
+
+      document.getElementById('processStatus').textContent = 'Conversion de la clé…';
+      const aliceEd25519Pub = hexDecode(alicePubHex);
+      const aliceX25519Pub = edwardsToMontgomeryPub(aliceEd25519Pub);
+
+      const ephPriv = crypto.getRandomValues(new Uint8Array(32));
+      const ephPub = x25519.getPublicKey(ephPriv);
+      const shared = x25519.getSharedSecret(ephPriv, aliceX25519Pub);
+      const aesKey = hkdf(sha256, shared, undefined, 'AUTHENTIX-ENC-2026', 32);
+
+      document.getElementById('processStatus').textContent = 'Chiffrement du document…';
+      const nonce = crypto.getRandomValues(new Uint8Array(12));
+      const cryptoKey = await crypto.subtle.importKey('raw', aesKey, { name: 'AES-GCM' }, false, ['encrypt']);
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, cryptoKey, pdfBytes);
+      const ciphertext = new Uint8Array(encrypted);
+
+      const blob = { eph_pub: hexEncode(ephPub), nonce: hexEncode(nonce), ciphertext: btoa(String.fromCharCode(...ciphertext)) };
+
+      document.getElementById('processStatus').textContent = 'Envoi vers le relais…';
+      let uploadResult;
       try {
-        const payload = buildBlockSigningPayload(cert);
-        const pubkey = hexToBytes(cert.device_pubkey);
-        const signature = hexToBytes(cert.block_signature);
-        if (pubkey.length !== 32) throw new Error("device_pubkey n'est pas 32 octets");
-        if (signature.length !== 64) throw new Error("block_signature n'est pas 64 octets");
-        sigOk = nacl.sign.detached.verify(payload, signature, pubkey);
+        const resp = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(blob) });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        uploadResult = await resp.json();
       } catch (e) {
-        sigError = e.message;
+        showError('Erreur d\'envoi : ' + e.message);
+        uploadResult = { url_1: 'https://authentix-relay.asemantix.workers.dev/docs/pending', url_2: 'https://authentix-relay.asemantix.workers.dev/docs/pending', id: 'pending' };
       }
 
-      // (3) Journal integrity — optional
-      let journalChainOk = null;
-      let tauCoherenceOk = null;
-      if (state.journalJson) {
-        journalChainOk = verifyJournalChain(state.journalJson);
-        tauCoherenceOk = verifyTauCoherence(state.journalJson, cert);
-      }
-
-      const report = {
-        verifiedAt: new Date().toISOString(),
-        documentName: state.docName,
-        hashOk,
-        sigOk,
-        sigError,
-        journalChainOk,
-        tauCoherenceOk,
-        cert,
+      const expiresISO = expiresDate + 'T23:59:59Z';
+      const payload = {
+        pdf_url_1: uploadResult.url_1, pdf_url_2: uploadResult.url_2,
+        doc_hash: docHash, eph_pub: hexEncode(ephPub),
+        expediteur: senderName, reply_to: replyTo,
+        reply_sms: replySms || undefined,
+        expires: expiresISO,
+        sent_at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
+        tag: 'AUTHENTIX-2026',
       };
-      state.lastReport = report;
-      renderResult(report);
-    }
+      const payloadJson = JSON.stringify(payload);
+      const payloadB64 = btoa(unescape(encodeURIComponent(payloadJson)));
+      const deepLink = 'https://authentix-sign.tech/sign?payload=' + encodeURIComponent(payloadB64);
 
-    // Reconstruction exacte du payload signé par CertificateV2.blockSigningPayload()
-    // côté Android. Tout écart casse la signature — ne pas modifier sans
-    // aligner le Kotlin.
-    function buildBlockSigningPayload(cert) {
-      const NUL = "\u0000";
-      const parts = [];
-      parts.push("AUTHENTIX-SIGN-V1" + NUL);
-      parts.push((cert.document_name || "") + NUL);
-      parts.push((cert.document_hash || "") + NUL);
-      parts.push((cert.device_pubkey || "") + NUL);
-      const att = cert.device_attestation || {};
-      parts.push((att.model || "") + NUL);
-      parts.push((att.manufacturer || "") + NUL);
-      parts.push(String(att.android_api || 0) + NUL);
-      parts.push((att.integrity_verdict || "") + NUL);
-      const bio = cert.biometric_proof || {};
-      parts.push((bio.method || "") + NUL);
-      parts.push((bio.authenticator_type || "") + NUL);
-      parts.push(String(!!bio.crypto_object_used) + NUL);
-      parts.push((bio.timestamp || "") + NUL);
-      parts.push(String(cert.tau || 0) + NUL);
-      parts.push((cert.document_opened_at || "") + NUL);
-      parts.push((cert.cert_produced_at || "") + NUL);
-      parts.push(String(cert.certificate_exported_at || 0) + NUL);
-      if (Array.isArray(cert.keystore_attestation)) {
-        for (const h of cert.keystore_attestation) parts.push(h + NUL);
-      }
-      return new TextEncoder().encode(parts.join(""));
-    }
+      showStep(5);
+      const qrContainer = document.getElementById('qr-container');
+      qrContainer.innerHTML = '';
+      QRCode.toCanvas(payloadJson.length > 2000 ? deepLink : payloadJson, {
+        width: 320, margin: 2, color: { dark: '#ffffff', light: '#0c0c0f' },
+      }, (err, canvas) => {
+        if (err) { showError('Erreur QR: ' + err.message); return; }
+        qrContainer.appendChild(canvas);
+      });
 
-    // Parcourt la chaîne entry.prev_hash == previous.entry_hash, à partir
-    // de "GENESIS". Réplique exactement VCH.verify() côté Android.
-    function verifyJournalChain(journal) {
-      const entries = journal.entries || [];
-      if (entries.length === 0) return true;
-      let expectedPrev = "GENESIS";
-      for (const e of entries) {
-        if ((e.prev_hash || "") !== expectedPrev) return false;
-        expectedPrev = e.entry_hash || "";
-      }
-      return true;
-    }
+      document.getElementById('deepLinkUrl').value = deepLink;
+      document.getElementById('sendInstructions').textContent =
+        'Envoyez ce QR à ' + recipientName + ' par email, SMS ou WhatsApp. ' + recipientName + ' le scannera avec l\'app Authentix Sign.';
+      document.getElementById('expireInfo').textContent = 'Expiration : ' + expiresDate;
 
-    // Cherche dans le journal une entrée dont {document_hash, tau} matche
-    // le certificat — prouve que le certificat a bien été enregistré dans
-    // le journal du dispositif.
-    function verifyTauCoherence(journal, cert) {
-      const entries = journal.entries || [];
-      const dh = (cert.document_hash || "").toLowerCase();
-      const tau = Number(cert.tau || 0);
-      return entries.some(
-        (e) => (e.document_hash || "").toLowerCase() === dh && Number(e.tau) === tau
-      );
-    }
-
-    // ── Result rendering ──────────────────────────────────────────────────
-
-    function renderResult(r) {
-      const allCriticalOk = r.hashOk && r.sigOk;
-      resultCard.className = "card result" + (allCriticalOk ? "" : " fail");
-      resultCard.style.display = "block";
-
-      const rows = [];
-      rows.push(row("Document intact", r.hashOk));
-      rows.push(row("Certificat authentique", r.sigOk, r.sigError));
-
-      const att = r.cert.device_attestation || {};
-      const bio = r.cert.biometric_proof || {};
-      const deviceLabel = (att.manufacturer || "") + " " + (att.model || "");
-      rows.push(kv("Appareil", deviceLabel.trim() || "—"));
-
-      const bioLabel = bio.crypto_object_used
-        ? (bio.method === "FINGERPRINT" ? "Empreinte ✓" : (bio.method || "Vérifiée") + " ✓")
-        : "⚠ non vérifiée";
-      rows.push(kv("Biométrie", bioLabel));
-      rows.push(kv("Compteur τ", "#" + (r.cert.tau ?? "?")));
-
-      if (r.journalChainOk !== null) {
-        rows.push(row("Chaîne journal intègre", r.journalChainOk));
-        rows.push(row("Cohérence τ (cert ↔ journal)", r.tauCoherenceOk));
+      // Save to history via API
+      if (currentOrg && authToken) {
+        try {
+          await api('POST', '/envois', {
+            destinataire_nom: recipientName,
+            destinataire_email: recipientEmail,
+            doc_hash: docHash,
+            relay_id: uploadResult.id || null,
+            expires_at: expiresISO,
+          });
+        } catch {} // non-blocking
       }
 
-      const openedAt = r.cert.document_opened_at || "";
-      const fingerAt = bio.timestamp || "";
-      const certAt   = r.cert.cert_produced_at || "";
-      rows.push(kv("Ouvert le", formatTimestamp(openedAt)));
-      rows.push(kv("Empreinte posée", formatTimestamp(fingerAt)));
-      rows.push(kv("Certificat produit", formatTimestamp(certAt || fingerAt)));
-      const readDuration = formatDuration(openedAt, fingerAt);
-      if (readDuration) rows.push(kv("Durée de lecture", readDuration));
-      if (openedAt) {
-        rows.push(row("H(doc) vérifié à l'ouverture", true));
-      }
+      // Download QR
+      document.getElementById('btnDownloadQr').onclick = () => {
+        const c = qrContainer.querySelector('canvas'); if (!c) return;
+        const a = document.createElement('a'); a.download = 'authentix-qr-'+docHash.substring(0,8)+'.png'; a.href = c.toDataURL('image/png'); a.click();
+      };
+      // Send email
+      document.getElementById('btnSendEmail').onclick = () => {
+        const subject = encodeURIComponent('Document à signer - Authentix Sign');
+        const body = encodeURIComponent('Bonjour ' + recipientName + ',\n\nVous avez reçu un document à signer via Authentix Sign.\n\n1. Installez l\'app Authentix Sign si ce n\'est pas déjà fait\n2. Ouvrez ce lien depuis votre téléphone :\n\n' + deepLink + '\n\nCe lien expire le ' + expiresDate + '.\n\nCordialement,\n' + senderName);
+        window.open('mailto:' + encodeURIComponent(recipientEmail) + '?subject=' + subject + '&body=' + body, '_self');
+      };
+      // New send
+      document.getElementById('btnNewSend').onclick = () => {
+        showScreen('screenSend'); showStep(1);
+        pdfBytes=null; docHash='';
+        document.getElementById('btnStepDocSend').disabled=true;
+        document.getElementById('docStatus').style.display='none';
+        document.getElementById('pubkeyInput').value='';
+        document.getElementById('recipientName').value='';
+        document.getElementById('recipientEmail').value='';
+        pdfInput.parentElement.querySelector('.name').innerHTML='<span class="placeholder">Sélectionnez un fichier PDF</span>';
+      };
 
-      resultCard.innerHTML =
-        "<h2>" + (allCriticalOk ? "Document vérifié ✅" : "Vérification échouée ❌") + "</h2>" +
-        "<ul>" + rows.join("") + "</ul>";
-
-      btnPdf.style.display = "block";
-    }
-
-    function row(label, ok, errorMsg) {
-      const mark = ok ? '<span class="ok">✓</span>' : '<span class="ko">✗</span>';
-      const tail = errorMsg ? ' <span class="k mono">' + escapeHtml(errorMsg) + "</span>" : "";
-      return '<li><span class="k">' + escapeHtml(label) + "</span><span class=\"v\">" + mark + tail + "</span></li>";
-    }
-    function kv(label, value) {
-      return '<li><span class="k">' + escapeHtml(label) + '</span><span class="v">' + escapeHtml(String(value)) + "</span></li>";
-    }
-
-    // ── PDF report ────────────────────────────────────────────────────────
-
-    function generatePdf(r) {
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: "pt", format: "a4" });
-
-      const W = pdf.internal.pageSize.getWidth();
-      const margin = 48;
-      let y = margin;
-
-      // Header — logo block
-      pdf.setFillColor("#c9a84c");
-      pdf.rect(margin, y, 48, 48, "F");
-      pdf.setTextColor("#0c0c0f");
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(28);
-      pdf.text("A", margin + 16, y + 34);
-
-      pdf.setTextColor("#0c0c0f");
-      pdf.setFontSize(16);
-      pdf.text("Rapport de vérification AUTHENTIX SIGN", margin + 64, y + 28);
-      y += 80;
-
-      // Result banner
-      const ok = r.hashOk && r.sigOk;
-      pdf.setFillColor(ok ? "#0e1a12" : "#1a0d0d");
-      pdf.rect(margin, y, W - margin * 2, 42, "F");
-      pdf.setTextColor(ok ? "#22c55e" : "#e24b4a");
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(14);
-      pdf.text(ok ? "DOCUMENT VERIFIE" : "VERIFICATION ECHOUEE", margin + 14, y + 26);
-      y += 64;
-
-      // Fields
-      pdf.setTextColor("#0c0c0f");
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(11);
-
-      const att = r.cert.device_attestation || {};
-      const bio = r.cert.biometric_proof || {};
-      const lines = [
-        ["Document", r.documentName || "—"],
-        ["Hash SHA3-256", (r.cert.document_hash || "").slice(0, 48) + "…"],
-        ["Document intact", r.hashOk ? "OUI" : "NON"],
-        ["Signature Ed25519", r.sigOk ? "VALIDE" : "INVALIDE"],
-        ["Appareil", ((att.manufacturer || "") + " " + (att.model || "")).trim() || "—"],
-        ["Android API", String(att.android_api || "—")],
-        ["Intégrité dispositif", att.integrity_verdict || "—"],
-        ["Biométrie", bio.method || "—"],
-        ["Authentificateur", bio.authenticator_type || "—"],
-        ["CryptoObject", bio.crypto_object_used ? "OUI" : "NON"],
-        ["Compteur τ", "#" + (r.cert.tau ?? "?")],
-        ["Ouvert le", formatTimestamp(r.cert.document_opened_at)],
-        ["Empreinte posée", formatTimestamp(bio.timestamp)],
-        ["Certificat produit", formatTimestamp(r.cert.cert_produced_at || bio.timestamp)],
-        ["Certificat exporté", r.cert.certificate_exported_at ? "τ #" + r.cert.certificate_exported_at + " (informatif — non signé)" : "—"],
-        ["Durée de lecture", formatDuration(r.cert.document_opened_at, bio.timestamp) || "—"],
-      ];
-
-      if (r.journalChainOk !== null) {
-        lines.push(["Chaîne journal", r.journalChainOk ? "INTÈGRE" : "ROMPUE"]);
-        lines.push(["Cohérence τ", r.tauCoherenceOk ? "OUI" : "NON"]);
-      }
-
-      lines.push(["Vérifié le", formatTimestamp(r.verifiedAt)]);
-
-      for (const [label, value] of lines) {
-        pdf.setTextColor("#666");
-        pdf.text(label, margin, y);
-        pdf.setTextColor("#0c0c0f");
-        pdf.text(String(value), margin + 180, y);
-        y += 18;
-      }
-
-      // Footer
-      y = pdf.internal.pageSize.getHeight() - 48;
-      pdf.setDrawColor("#c9a84c");
-      pdf.line(margin, y, W - margin, y);
-      y += 18;
-      pdf.setFontSize(9);
-      pdf.setTextColor("#666");
-      pdf.text("Vérifié par AUTHENTIX SIGN — authentix-sign.tech", margin, y);
-      pdf.text("Hors ligne · sans serveur · sans tiers de confiance", margin, y + 12);
-
-      const fname = "authentix-sign-report-" + Date.now() + ".pdf";
-      pdf.save(fname);
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────
-
-    function hexToBytes(hex) {
-      if (typeof hex !== "string") return new Uint8Array(0);
-      hex = hex.trim();
-      if (hex.length % 2 !== 0) return new Uint8Array(0);
-      const out = new Uint8Array(hex.length / 2);
-      for (let i = 0; i < out.length; i++) {
-        out[i] = parseInt(hex.substr(i * 2, 2), 16);
-      }
-      return out;
-    }
-
-    function formatTimestamp(iso) {
-      if (!iso) return "—";
-      try {
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return iso;
-        return d.toLocaleString("fr-FR", {
-          year: "numeric", month: "2-digit", day: "2-digit",
-          hour: "2-digit", minute: "2-digit", second: "2-digit",
-        });
-      } catch (_) {
-        return iso;
-      }
-    }
-
-    function formatDuration(openedIso, signedIso) {
-      if (!openedIso || !signedIso) return "";
-      try {
-        const o = new Date(openedIso).getTime();
-        const s = new Date(signedIso).getTime();
-        if (isNaN(o) || isNaN(s) || s < o) return "";
-        const diff = Math.floor((s - o) / 1000);
-        const h = Math.floor(diff / 3600);
-        const m = Math.floor((diff % 3600) / 60);
-        const sec = diff % 60;
-        if (h > 0) return h + " h " + m + " min " + sec + " sec";
-        if (m > 0) return m + " min " + sec + " sec";
-        return sec + " sec";
-      } catch (_) {
-        return "";
-      }
-    }
-
-    function escapeHtml(s) {
-      return String(s)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function showError(msg) {
-      errorBox.innerHTML = '<div class="error">' + escapeHtml(msg) + "</div>";
-    }
-    function clearError() {
-      errorBox.innerHTML = "";
-    }
-  })();
-  </script>
+    } catch (e) { showError('Erreur : ' + e.message); showStep(3); }
+  });
+</script>
 </body>
 </html>

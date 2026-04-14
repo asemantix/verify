@@ -740,8 +740,12 @@
     location.replace(location.pathname);
   });
 
-  // Blinder l'état initial : l'écran login est le seul visible au chargement
-  showScreen('screenLogin');
+  // Blinder l'état initial : forcer screenLogin + step1 actifs, TOUT le reste caché.
+  // Défense contre tout état résiduel (cache bfcache, manipulation DOM extérieure, etc.)
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+  document.getElementById('screenLogin').classList.add('active');
+  document.getElementById('step1').classList.add('active');
 
   // ── SCREEN: LOGIN ──────────────────────────────────────────────────
   document.getElementById('btnLogin').addEventListener('click', async () => {
