@@ -931,13 +931,6 @@
     }
   }
 
-  function showInviteSuccess(msg) {
-    const el = document.getElementById('inviteSuccess');
-    el.textContent = msg; el.style.display = 'block';
-  }
-  function hideInviteSuccess() {
-    document.getElementById('inviteSuccess').style.display = 'none';
-  }
   document.getElementById('btnInvite').addEventListener('click', async () => {
     const rEmail = document.getElementById('recipientEmail').value.trim();
     const rName = document.getElementById('recipientName').value.trim();
