@@ -150,6 +150,10 @@
       J'AI DÉJÀ L'APP — OUVRIR
     </a>
 
+    <a class="gold" id="btnMailKey" href="#" style="display:none;background:transparent;color:var(--gold);border:2px solid var(--gold);">
+      ENVOYER MA CLÉ PAR EMAIL
+    </a>
+
     <div class="return-msg">
       <strong>Une fois votre clé publique partagée</strong>, revenez sur ce lien pour ouvrir votre document.
     </div>
@@ -174,9 +178,19 @@
     var emailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
     if (emailLike) {
       var esc = function(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+      var safeSender = esc(sender);
       var el = document.getElementById('senderInfo');
-      el.innerHTML = 'Votre clé sera envoyée à : <strong>' + esc(sender) + '</strong>';
+      el.innerHTML =
+        'Ouvrez l\'app <strong>AUTHENTIX SIGN</strong> et cliquez <strong>PARTAGER MA CLÉ</strong> '
+        + 'pour envoyer votre clé à <strong>' + safeSender + '</strong>.';
       el.style.display = 'block';
+
+      // Bouton mailto: — fallback direct sans passer par l'app.
+      var mailtoUrl = 'mailto:' + encodeURIComponent(sender)
+        + '?subject=' + encodeURIComponent('Ma clé publique AUTHENTIX SIGN');
+      var btnMail = document.getElementById('btnMailKey');
+      btnMail.href = mailtoUrl;
+      btnMail.style.display = 'block';
     }
   }
 
