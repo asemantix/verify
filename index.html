@@ -416,29 +416,19 @@
       <span class="back-link" id="backToDashFromSend">← Tableau de bord</span>
 
       <div class="notice">
-        Votre document est chiffré sur votre poste avant d'être envoyé.<br>
+        Votre document est chiffré sur votre appareil avant d'être envoyé.<br>
         Personne ne peut en lire le contenu — ni nos serveurs, ni aucun intermédiaire.
       </div>
 
-      <!-- Progress indicator -->
-      <div class="stepper" id="stepper">
-        <div class="dot" data-n="1">1</div>
-        <div class="bar"></div>
-        <div class="dot" data-n="2">2</div>
-        <div class="bar"></div>
-        <div class="dot" data-n="3">3</div>
-      </div>
-
-      <!-- STEP 1: Invite recipient -->
-      <div id="step1" class="step">
+      <!-- ONE-SHOT : saisir email + PDF + ENVOYER -->
+      <div id="stepOneShot" class="step active">
         <div class="tuto-card">
           <div class="tuto-head">
-            <div class="step-num">1</div>
             <div class="step-icon">
               <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
             </div>
-            <h2>Inviter votre destinataire</h2>
-            <p class="desc">À télécharger l'app AUTHENTIX SIGN.</p>
+            <h2>Envoyer un document</h2>
+            <p class="desc">Saisissez l'email de votre destinataire, sélectionnez votre PDF, cliquez ENVOYER. Tout le reste est automatique.</p>
           </div>
 
           <div class="field">
@@ -449,60 +439,6 @@
             <label>Email du destinataire</label>
             <input type="email" id="recipientEmail" placeholder="alice@email.com">
           </div>
-
-          <button class="gold" id="btnInvite">ENVOYER LE LIEN DE L'APP &#10140;</button>
-          <p id="inviteSuccess" style="display:none;color:var(--green);font-size:15px;font-weight:600;margin-top:12px;text-align:center;"></p>
-          <p id="inviteError" style="display:none;color:var(--red);font-size:14px;margin-top:10px;text-align:center;"></p>
-        </div>
-
-        <div class="invite-box" style="margin-top:20px;">
-          <p>Votre destinataire doit installer l'app AUTHENTIX SIGN et vous adresser sa clé publique.</p>
-        </div>
-
-        <button class="outline" id="btnGotoStep2">J'AI REÇU LA CLÉ PUBLIQUE</button>
-      </div>
-
-      <!-- STEP 2: Enter public key -->
-      <div id="step2" class="step">
-        <div class="tuto-card">
-          <div class="tuto-head">
-            <div class="step-num">2</div>
-            <div class="step-icon">
-              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h10M18 12v4M22 12v3"/></svg>
-            </div>
-            <h2>Saisir la clé publique</h2>
-            <p class="desc">Votre destinataire vous a envoyé sa clé publique par email depuis l'app AUTHENTIX SIGN. Collez-la ici.</p>
-          </div>
-
-          <div class="field">
-            <label>Clé publique du destinataire</label>
-            <input type="text" id="pubkeyInput" placeholder="Collez ici la clé publique envoyée par votre destinataire" maxlength="64" autocomplete="off" spellcheck="false">
-          </div>
-          <div id="pubkeyStatus" style="display:none;">
-            <p style="color:var(--green);margin:4px 0 8px;font-size:14px;">Clé reçue ✓</p>
-          </div>
-          <button class="outline small" id="btnPickContact">MES DESTINATAIRES</button>
-          <div id="saveContactBox" style="display:none;margin-top:8px;">
-            <button class="outline small" id="btnSaveContact">SAUVEGARDER CE DESTINATAIRE</button>
-          </div>
-        </div>
-
-        <button class="gold" id="btnStepKeyNext" disabled>VALIDER &#10140;</button>
-        <button class="outline" id="btnStepKeyBack">&#8592; RETOUR</button>
-      </div>
-
-      <!-- STEP 3: Send document -->
-      <div id="step3" class="step">
-        <div class="tuto-card">
-          <div class="tuto-head">
-            <div class="step-num">3</div>
-            <div class="step-icon">
-              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>
-            </div>
-            <h2>Envoyer le document</h2>
-            <p class="desc">Sélectionnez le PDF à signer. Il sera chiffré sur votre appareil avant l'envoi — personne d'autre que votre destinataire ne pourra le lire.</p>
-          </div>
-
           <div class="field">
             <label>Document PDF</label>
             <div class="file-input">
@@ -512,57 +448,53 @@
             </div>
           </div>
           <div id="docStatus" style="display:none;">
-            <p style="color:var(--green);margin:8px 0 0;font-size:15px;">Document prêt ✓</p>
-            <p class="hash-display" id="docHashDisplay"></p>
+            <p style="color:var(--green);margin:8px 0 16px;font-size:15px;">Document prêt ✓</p>
           </div>
 
-          <!-- Sender fields hidden — auto-filled from currentOrg -->
           <input type="hidden" id="senderName">
           <input type="hidden" id="replyTo">
+          <input type="hidden" id="replySms">
+          <input type="hidden" id="expiresDate">
+          <input type="hidden" id="pubkeyInput">
 
-          <div class="field" style="margin-top:22px;">
-            <label>SMS de retour (optionnel)</label>
-            <input type="tel" id="replySms" placeholder="+33 6 ...">
-          </div>
-          <div class="field">
-            <label>Date d'expiration (optionnel)</label>
-            <input type="date" id="expiresDate">
-          </div>
+          <button class="gold" id="btnOneShotSend" disabled>ENVOYER</button>
+          <p id="inviteSuccess" style="display:none;color:var(--green);font-size:15px;font-weight:600;margin-top:14px;text-align:center;line-height:1.55;"></p>
+          <p id="inviteError" style="display:none;color:var(--red);font-size:14px;margin-top:10px;text-align:center;"></p>
         </div>
 
-        <button class="gold" id="btnStepDocSend" disabled>CHIFFRER ET ENVOYER</button>
-        <button class="outline" id="btnStepDocBack">&#8592; RETOUR</button>
+        <div class="invite-box" style="margin-top:20px;">
+          <p>Vous recevrez un email d'Alice contenant un lien. Cliquez-le pour finaliser l'envoi automatiquement.</p>
+        </div>
       </div>
 
-      <!-- STEP 4: Processing -->
-      <div id="step4" class="step">
-        <section class="card" style="text-align:center;">
-          <div class="spinner"></div>
-          <p id="processStatus" style="margin:8px 0 0;font-size:15px;">Chiffrement en cours...</p>
+      <!-- Step processing — pendant chiffrement / upload -->
+      <div id="stepProcessing" class="step">
+        <section class="card" style="text-align:center;padding:40px 24px;">
+          <div class="spinner" style="width:32px;height:32px;"></div>
+          <p id="processStatus" style="margin:16px 0 0;font-size:16px;line-height:1.5;">Chiffrement en cours...</p>
         </section>
       </div>
 
-      <!-- STEP 5: QR Result -->
-      <div id="step5" class="step">
+      <!-- Step finalize — MONABANQ clique le lien d'Alice -->
+      <div id="stepFinalize" class="step">
+        <div class="tuto-card">
+          <div class="tuto-head">
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z"/><path d="M8 12l3 3 5-6"/></svg>
+            </div>
+            <h2 style="color:var(--green);">Clé publique reçue ✓</h2>
+            <p class="desc" id="finalizeDesc">Finalisation de l'envoi…</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step success — tout est envoyé -->
+      <div id="stepDone" class="step">
         <div class="success">
-          <h2>Document chiffré et envoyé ✓</h2>
-          <p style="color:var(--dim);font-size:14px;">Envoyez ce QR au destinataire</p>
+          <h2>Document envoyé ✓</h2>
+          <p style="color:var(--fg);font-size:15px;margin:12px 0;" id="doneMessage">Le lien de signature a été envoyé à votre destinataire. Après signature, vous recevrez automatiquement le certificat et le journal horodaté.</p>
         </div>
-
-        <div id="qr-container"></div>
-
-        <button class="outline" id="btnDownloadQr">TÉLÉCHARGER LE QR</button>
-        <button class="gold" id="btnSendEmail" style="margin-top:10px;">ENVOYER PAR EMAIL</button>
-
-        <p class="instructions" id="sendInstructions"></p>
-        <p class="expire-info" id="expireInfo"></p>
-
-        <div style="margin-top:16px;">
-          <label style="color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px;">Lien direct</label>
-          <input type="text" id="deepLinkUrl" readonly style="width:100%;background:#0a0a0f;border:1px solid var(--gold);border-radius:8px;padding:10px 14px;color:var(--fg);font-size:13px;font-family:monospace;margin-top:4px;" onclick="this.select()">
-        </div>
-
-        <button class="outline" id="btnNewSend" style="margin-top:20px;">ENVOYER UN AUTRE DOCUMENT</button>
+        <button class="gold" id="btnNewSend" style="margin-top:20px;">ENVOYER UN AUTRE DOCUMENT</button>
       </div>
     </div>
 
@@ -682,36 +614,17 @@
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
     document.getElementById(id).classList.add('active');
   }
+  // Sous-étape de l'écran screenSend : stepOneShot, stepProcessing,
+  // stepFinalize, stepDone. (L'ancien stepper 1-2-3 est supprimé.)
+  function showSendStep(id) {
+    document.querySelectorAll('#screenSend .step').forEach(el => el.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+  // Compat : showStep(1) → stepOneShot (utilisé par la défense bfcache)
   function showStep(n) {
-    // Guards — cannot jump to a step without its prerequisites
-    if (n === 2 || n === 3) {
-      const rName = (document.getElementById('recipientName')?.value || '').trim();
-      const rEmail = (document.getElementById('recipientEmail')?.value || '').trim();
-      if (!rName || !rEmail) { n = 1; }
-    }
-    if (n === 3) {
-      const pk = (document.getElementById('pubkeyInput')?.value || '').trim();
-      if (!/^[0-9a-fA-F]{64}$/.test(pk)) { n = 2; }
-    }
-    document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
-    document.getElementById('step'+n).classList.add('active');
-    // Update stepper indicator (only visible for user-facing steps 1–3)
-    const stepper = document.getElementById('stepper');
-    if (stepper) {
-      const dots = stepper.querySelectorAll('.dot');
-      const bars = stepper.querySelectorAll('.bar');
-      dots.forEach((d, i) => {
-        d.classList.remove('active', 'done');
-        if (i + 1 < n && n <= 3) d.classList.add('done');
-        else if (i + 1 === n) d.classList.add('active');
-      });
-      bars.forEach((b, i) => {
-        b.classList.remove('done');
-        if (i + 1 < n && n <= 3) b.classList.add('done');
-      });
-      // Hide stepper during processing/result (steps 4–5)
-      stepper.style.display = n >= 4 ? 'none' : 'flex';
-    }
+    if (n === 1 || n === 'stepOneShot') showSendStep('stepOneShot');
+    else if (typeof n === 'string') showSendStep(n);
   }
   function showError(msg) { const b=document.getElementById('errorBox'); b.textContent=msg; b.style.display='block'; }
   function hideError() { document.getElementById('errorBox').style.display='none'; }
@@ -886,15 +799,19 @@
   document.getElementById('btnDashSend').addEventListener('click', () => {
     hideInviteError(); hideInviteSuccess();
     showScreen('screenSend');
-    showStep(1);
+    showSendStep('stepOneShot');
     pdfBytes = null; docHash = '';
-    document.getElementById('btnStepDocSend').disabled = true;
+    document.getElementById('btnOneShotSend').disabled = true;
     document.getElementById('docStatus').style.display = 'none';
     document.getElementById('recipientName').value = '';
     document.getElementById('recipientEmail').value = '';
-    document.getElementById('pubkeyInput').value = '';
-    document.getElementById('pubkeyStatus').style.display = 'none';
-    // Pre-fill sender from org
+    const pdfIn = document.getElementById('pdfInput');
+    if (pdfIn) {
+      pdfIn.value = '';
+      const nameEl = pdfIn.parentElement.querySelector('.name');
+      if (nameEl) nameEl.innerHTML = '<span class="placeholder">Sélectionnez un fichier PDF</span>';
+    }
+    // Pre-fill sender from org (hidden fields)
     document.getElementById('senderName').value = currentOrg.nom;
     document.getElementById('replyTo').value = currentOrg.email;
   });
@@ -939,10 +856,11 @@
     list.querySelectorAll('.btn-use').forEach(btn => {
       btn.addEventListener('click', () => {
         const c = contactsCache[+btn.dataset.i];
-        document.getElementById('pubkeyInput').value = c.cle_publique || '';
         document.getElementById('recipientName').value = c.nom;
         document.getElementById('recipientEmail').value = c.email;
-        showScreen('screenSend'); showStep(2); validateStep2();
+        showScreen('screenSend');
+        showSendStep('stepOneShot');
+        validateOneShot();
       });
     });
     list.querySelectorAll('.btn-update').forEach(btn => {
@@ -970,189 +888,202 @@
   }
   document.getElementById('backToDash').addEventListener('click', () => { showDashboard(); });
 
-  // ── STEP 1: Invite recipient ───────────────────────────────────────
+  // ── FLUX ONE-SHOT ──────────────────────────────────────────────────
+  // 1) Saisie (email destinataire + PDF) → bouton ENVOYER
+  // 2) Chiffrement éphémère local du PDF + stockage IndexedDB
+  // 3) Envoi invitation Brevo avec ?session=UUID
+  // 4) Plus tard, MONABANQ clique le lien retour d'Alice :
+  //    /?session=X&alice_key=Y → finalisation auto
   function showInviteError(msg) {
     const el = document.getElementById('inviteError');
     el.textContent = msg; el.style.display = 'block';
   }
-  function hideInviteError() {
-    document.getElementById('inviteError').style.display = 'none';
-  }
+  function hideInviteError() { document.getElementById('inviteError').style.display = 'none'; }
   function showInviteSuccess(msg) {
     const el = document.getElementById('inviteSuccess');
-    el.textContent = msg; el.style.display = 'block';
+    el.innerHTML = msg; el.style.display = 'block';
   }
-  function hideInviteSuccess() {
-    document.getElementById('inviteSuccess').style.display = 'none';
-  }
-  document.getElementById('btnInvite').addEventListener('click', async () => {
-    const rEmail = document.getElementById('recipientEmail').value.trim();
-    const rName = document.getElementById('recipientName').value.trim();
-    if (!rName || !rEmail) {
-      showInviteError('Veuillez renseigner le nom ET l\'email du destinataire avant d\'envoyer le lien.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rEmail)) {
-      showInviteError('Email du destinataire invalide.');
-      return;
-    }
-    hideInviteError();
-    hideInviteSuccess();
-    const btn = document.getElementById('btnInvite');
-    const originalLabel = btn.textContent;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Envoi en cours...';
-    try {
-      await api('POST', '/send-invite', { recipient_name: rName, recipient_email: rEmail });
-      btn.textContent = originalLabel;
-      // Button stays disabled to prevent double-send; confirmation shown below
-      showInviteSuccess('✅ Invitation envoyée à ' + rName + '. Votre destinataire vous transmettra sa clé publique par email depuis son app AUTHENTIX SIGN.');
-    } catch (e) {
-      btn.disabled = false;
-      btn.textContent = originalLabel;
-      showInviteError('Échec de l\'envoi : ' + e.message);
-    }
-  });
-  // Hide error + success + re-enable button as soon as user edits the fields
-  // (allows sending to a different recipient after a successful invite)
-  ['recipientName','recipientEmail'].forEach(id => {
-    document.getElementById(id).addEventListener('input', () => {
-      hideInviteError();
-      hideInviteSuccess();
-      const btn = document.getElementById('btnInvite');
-      if (btn.disabled) btn.disabled = false;
+  function hideInviteSuccess() { document.getElementById('inviteSuccess').style.display = 'none'; }
+
+  // ── IndexedDB : stockage local des sessions en attente ─────────────
+  // Clé : session_uuid. Valeur : { pdf_bytes, doc_hash, recipient_name,
+  // recipient_email, created_at, sender_name, sender_email }
+  const IDB_NAME = 'authentix_sessions';
+  const IDB_STORE = 'sessions';
+  function idbOpen() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
     });
-  });
+  }
+  async function idbPut(key, value) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  }
+  async function idbGet(key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => { db.close(); resolve(req.result || null); };
+      req.onerror = () => { db.close(); reject(req.error); };
+    });
+  }
+  async function idbDelete(key) {
+    const db = await idbOpen();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(key);
+      tx.oncomplete = () => { db.close(); resolve(); };
+    });
+  }
 
-  document.getElementById('btnGotoStep2').addEventListener('click', () => {
-    const rName = document.getElementById('recipientName').value.trim();
-    const rEmail = document.getElementById('recipientEmail').value.trim();
-    if (!rName || !rEmail) { showError('Renseignez le nom et l\'email du destinataire.'); return; }
-    hideError();
-    showStep(2);
-    validateStep2();
-  });
-
-  // ── STEP 2 ↔ STEP 3 navigation ─────────────────────────────────────
-  document.getElementById('btnStepKeyBack').addEventListener('click', () => { hideError(); showStep(1); });
-  document.getElementById('btnStepKeyNext').addEventListener('click', () => {
-    const pk = document.getElementById('pubkeyInput').value.trim();
-    if (!/^[0-9a-fA-F]{64}$/.test(pk)) { showError('Clé publique invalide (64 caractères hex).'); return; }
-    hideError();
-    showStep(3);
-    const d = new Date(); d.setDate(d.getDate() + 7);
-    if (!document.getElementById('expiresDate').value) {
-      document.getElementById('expiresDate').value = d.toISOString().split('T')[0];
-    }
-    validateStepDoc();
-  });
-  document.getElementById('btnStepDocBack').addEventListener('click', () => { hideError(); showStep(2); });
-
-  // ── STEP 3: PDF selection ──────────────────────────────────────────
+  // ── PDF picker ─────────────────────────────────────────────────────
   const pdfInput = document.getElementById('pdfInput');
-
   pdfInput.addEventListener('change', async () => {
-    hideError();
+    hideInviteError();
     const file = pdfInput.files[0];
     if (!file) return;
     pdfInput.parentElement.querySelector('.name').textContent = file.name;
     const buf = await file.arrayBuffer();
     pdfBytes = new Uint8Array(buf);
     docHash = sha3_256(pdfBytes); // eslint-disable-line no-undef
-    document.getElementById('docHashDisplay').textContent = 'Hash : ' + docHash.substring(0,16) + '…';
     document.getElementById('docStatus').style.display = 'block';
-    validateStepDoc();
+    validateOneShot();
   });
 
-  function validateStepDoc() {
-    const name = document.getElementById('senderName').value.trim();
-    const email = document.getElementById('replyTo').value.trim();
-    document.getElementById('btnStepDocSend').disabled = !(pdfBytes && name && email);
-  }
-  ['senderName','replyTo'].forEach(id => document.getElementById(id).addEventListener('input', validateStepDoc));
-
-  // ── STEP 2: Public key validation ──────────────────────────────────
-  const pubkeyInput = document.getElementById('pubkeyInput');
-  const btnStepKeyNext = document.getElementById('btnStepKeyNext');
-
-  function validateStep2() {
-    const pk = pubkeyInput.value.trim();
+  function validateOneShot() {
     const rName = document.getElementById('recipientName').value.trim();
     const rEmail = document.getElementById('recipientEmail').value.trim();
-    const validPk = /^[0-9a-fA-F]{64}$/.test(pk);
-    document.getElementById('pubkeyStatus').style.display = validPk ? 'block' : 'none';
-    btnStepKeyNext.disabled = !validPk;
-    // Show save contact button when key + recipient fields are valid
-    document.getElementById('saveContactBox').style.display = (validPk && rName && rEmail) ? 'block' : 'none';
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rEmail);
+    document.getElementById('btnOneShotSend').disabled = !(rName && validEmail && pdfBytes);
   }
-  ['pubkeyInput','recipientName','recipientEmail'].forEach(id => {
-    document.getElementById(id).addEventListener('input', validateStep2);
+  ['recipientName','recipientEmail'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      hideInviteError();
+      hideInviteSuccess();
+      validateOneShot();
+    });
   });
 
-  // Pick contact button in step 2
-  document.getElementById('btnPickContact').addEventListener('click', () => { showContacts(); });
+  // ── Bouton ENVOYER (one-shot) ──────────────────────────────────────
+  document.getElementById('btnOneShotSend').addEventListener('click', async () => {
+    const rName = document.getElementById('recipientName').value.trim();
+    const rEmail = document.getElementById('recipientEmail').value.trim();
+    if (!rName || !rEmail) { showInviteError('Renseignez le nom et l\'email.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rEmail)) { showInviteError('Email invalide.'); return; }
+    if (!pdfBytes) { showInviteError('Sélectionnez un PDF.'); return; }
 
-  // Save contact button
-  document.getElementById('btnSaveContact').addEventListener('click', async () => {
-    if (!currentOrg) return;
-    const nom = document.getElementById('recipientName').value.trim();
-    const email = document.getElementById('recipientEmail').value.trim();
-    const cle = pubkeyInput.value.trim();
-    if (!nom || !email || !cle) return;
+    hideInviteError(); hideInviteSuccess();
+    showSendStep('stepProcessing');
+    document.getElementById('processStatus').textContent = 'Préparation du document…';
+
     try {
-      await api('POST', '/destinataires', { nom, email, cle_publique: cle });
-      const box = document.getElementById('saveContactBox');
-      box.innerHTML = '<p style="color:var(--green);font-size:13px;margin:4px 0;">Destinataire sauvegardé ✓</p>';
-      setTimeout(() => { box.innerHTML = '<button class="outline small" id="btnSaveContact">SAUVEGARDER CE DESTINATAIRE</button>'; }, 2000);
-    } catch (e) { showError(e.message); }
+      const sessionId = crypto.randomUUID();
+
+      // Stockage local du PDF + métadonnées en IndexedDB
+      await idbPut(sessionId, {
+        pdf_bytes: pdfBytes,
+        doc_hash: docHash,
+        recipient_name: rName,
+        recipient_email: rEmail,
+        sender_name: currentOrg.nom,
+        sender_email: currentOrg.email,
+        created_at: new Date().toISOString(),
+      });
+
+      document.getElementById('processStatus').textContent = 'Envoi de l\'invitation…';
+      await api('POST', '/send-invite', {
+        recipient_name: rName,
+        recipient_email: rEmail,
+        session: sessionId,
+      });
+
+      // Historique (non bloquant)
+      if (currentOrg && authToken) {
+        try {
+          await api('POST', '/envois', {
+            destinataire_nom: rName,
+            destinataire_email: rEmail,
+            doc_hash: docHash,
+            doc_name: (pdfInput.files[0] && pdfInput.files[0].name) || null,
+          });
+        } catch {}
+      }
+
+      // Retour au one-shot avec message de succès
+      showSendStep('stepOneShot');
+      document.getElementById('btnOneShotSend').disabled = true;
+      showInviteSuccess(
+        '✅ Invitation envoyée à <strong>' + esc(rName) + '</strong>.<br>' +
+        'Vous recevrez un email avec un lien à cliquer pour finaliser automatiquement l\'envoi.'
+      );
+    } catch (e) {
+      showSendStep('stepOneShot');
+      showInviteError('Échec de l\'envoi : ' + e.message);
+    }
   });
 
-  // ── STEP 3 → Processing: Encrypt & upload ─────────────────────────
-  document.getElementById('btnStepDocSend').addEventListener('click', async () => {
-    hideError(); showStep(4);
-    try {
-      const alicePubHex = pubkeyInput.value.trim();
-      const senderName = document.getElementById('senderName').value.trim();
-      const replyTo = document.getElementById('replyTo').value.trim();
-      const recipientName = document.getElementById('recipientName').value.trim();
-      const recipientEmail = document.getElementById('recipientEmail').value.trim();
-      const replySms = document.getElementById('replySms').value.trim();
-      const expiresDate = document.getElementById('expiresDate').value;
+  // Bouton "ENVOYER UN AUTRE DOCUMENT" depuis stepDone
+  document.getElementById('btnNewSend').onclick = () => {
+    document.getElementById('btnDashSend').click();
+  };
 
-      document.getElementById('processStatus').textContent = 'Conversion de la clé…';
-      const aliceEd25519Pub = hexDecode(alicePubHex);
+  // ── Finalisation déclenchée par ?session=X&alice_key=Y ─────────────
+  async function runFinalize(sessionId, aliceKeyHex) {
+    showScreen('screenSend');
+    showSendStep('stepFinalize');
+    const desc = document.getElementById('finalizeDesc');
+    desc.textContent = 'Récupération du document…';
+
+    try {
+      const entry = await idbGet(sessionId);
+      if (!entry) {
+        desc.innerHTML =
+          '<span style="color:var(--red);">Session introuvable.</span><br>' +
+          '<span style="color:var(--dim);font-size:14px;">Vous n\'êtes peut-être pas sur le même navigateur que lors de l\'envoi initial. ' +
+          'Revenez sur ce lien depuis le navigateur utilisé pour l\'envoi.</span>';
+        return;
+      }
+
+      desc.textContent = 'Chiffrement du document pour votre destinataire…';
+      const aliceEd25519Pub = hexDecode(aliceKeyHex);
       const aliceX25519Pub = edwardsToMontgomeryPub(aliceEd25519Pub);
-
       const ephPriv = crypto.getRandomValues(new Uint8Array(32));
       const ephPub = x25519.getPublicKey(ephPriv);
       const shared = x25519.getSharedSecret(ephPriv, aliceX25519Pub);
       const aesKey = hkdf(sha256, shared, undefined, 'AUTHENTIX-ENC-2026', 32);
-
-      document.getElementById('processStatus').textContent = 'Chiffrement du document…';
       const nonce = crypto.getRandomValues(new Uint8Array(12));
       const cryptoKey = await crypto.subtle.importKey('raw', aesKey, { name: 'AES-GCM' }, false, ['encrypt']);
-      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, cryptoKey, pdfBytes);
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, cryptoKey, entry.pdf_bytes);
       const ciphertext = new Uint8Array(encrypted);
 
+      desc.textContent = 'Envoi chiffré vers le relais…';
       const blob = { eph_pub: hexEncode(ephPub), nonce: hexEncode(nonce), ciphertext: btoa(String.fromCharCode(...ciphertext)) };
-
-      document.getElementById('processStatus').textContent = 'Envoi vers le relais…';
       let uploadResult;
       try {
         const resp = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(blob) });
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         uploadResult = await resp.json();
       } catch (e) {
-        showError('Erreur d\'envoi : ' + e.message);
-        uploadResult = { url_1: 'https://authentix-relay.asemantix.workers.dev/docs/pending', url_2: 'https://authentix-relay.asemantix.workers.dev/docs/pending', id: 'pending' };
+        throw new Error('Upload relay failed: ' + e.message);
       }
 
-      const expiresISO = expiresDate + 'T23:59:59Z';
+      const expiresISO = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
       const payload = {
-        pdf_url_1: uploadResult.url_1, pdf_url_2: uploadResult.url_2,
-        doc_hash: docHash, eph_pub: hexEncode(ephPub),
-        expediteur: senderName, reply_to: replyTo,
-        reply_sms: replySms || undefined,
+        pdf_url_1: uploadResult.url_1,
+        pdf_url_2: uploadResult.url_2,
+        doc_hash: entry.doc_hash,
+        eph_pub: hexEncode(ephPub),
+        expediteur: entry.sender_name,
+        reply_to: entry.sender_email,
         expires: expiresISO,
         sent_at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
         tag: 'AUTHENTIX-2026',
@@ -1161,59 +1092,55 @@
       const payloadB64 = btoa(unescape(encodeURIComponent(payloadJson)));
       const deepLink = 'https://authentix-sign.tech/sign?payload=' + encodeURIComponent(payloadB64);
 
-      showStep(5);
-      const qrContainer = document.getElementById('qr-container');
-      qrContainer.innerHTML = '';
-      QRCode.toCanvas(payloadJson.length > 2000 ? deepLink : payloadJson, {
-        width: 320, margin: 2, color: { dark: '#ffffff', light: '#0c0c0f' },
-      }, (err, canvas) => {
-        if (err) { showError('Erreur QR: ' + err.message); return; }
-        qrContainer.appendChild(canvas);
+      desc.textContent = 'Envoi du lien de signature à ' + entry.recipient_name + '…';
+      await api('POST', '/send-signing-link', {
+        recipient_name: entry.recipient_name,
+        recipient_email: entry.recipient_email,
+        deep_link: deepLink,
       });
 
-      document.getElementById('deepLinkUrl').value = deepLink;
-      document.getElementById('sendInstructions').textContent =
-        'Envoyez ce QR à ' + recipientName + ' par email, SMS ou WhatsApp. ' + recipientName + ' le scannera avec l\'app Authentix Sign.';
-      document.getElementById('expireInfo').textContent = 'Expiration : ' + expiresDate;
+      // Nettoyage : la session a rempli son rôle
+      await idbDelete(sessionId);
 
-      // Save to history via API
-      if (currentOrg && authToken) {
-        try {
-          await api('POST', '/envois', {
-            destinataire_nom: recipientName,
-            destinataire_email: recipientEmail,
-            doc_hash: docHash,
-            relay_id: uploadResult.id || null,
-            expires_at: expiresISO,
-          });
-        } catch {} // non-blocking
-      }
+      // Nettoyage URL (enlève les params sensibles de l'adresse)
+      history.replaceState({}, '', window.location.pathname);
 
-      // Download QR
-      document.getElementById('btnDownloadQr').onclick = () => {
-        const c = qrContainer.querySelector('canvas'); if (!c) return;
-        const a = document.createElement('a'); a.download = 'authentix-qr-'+docHash.substring(0,8)+'.png'; a.href = c.toDataURL('image/png'); a.click();
-      };
-      // Send email
-      document.getElementById('btnSendEmail').onclick = () => {
-        const subject = encodeURIComponent('Document à signer - Authentix Sign');
-        const body = encodeURIComponent('Bonjour ' + recipientName + ',\n\nVous avez reçu un document à signer via Authentix Sign.\n\n1. Installez l\'app Authentix Sign si ce n\'est pas déjà fait\n2. Ouvrez ce lien depuis votre téléphone :\n\n' + deepLink + '\n\nCe lien expire le ' + expiresDate + '.\n\nCordialement,\n' + senderName);
-        window.open('mailto:' + encodeURIComponent(recipientEmail) + '?subject=' + subject + '&body=' + body, '_self');
-      };
-      // New send
-      document.getElementById('btnNewSend').onclick = () => {
-        showScreen('screenSend'); showStep(1);
-        pdfBytes=null; docHash='';
-        document.getElementById('btnStepDocSend').disabled=true;
-        document.getElementById('docStatus').style.display='none';
-        document.getElementById('pubkeyInput').value='';
-        document.getElementById('recipientName').value='';
-        document.getElementById('recipientEmail').value='';
-        pdfInput.parentElement.querySelector('.name').innerHTML='<span class="placeholder">Sélectionnez un fichier PDF</span>';
-      };
+      document.getElementById('doneMessage').innerHTML =
+        'Le lien de signature a été envoyé à <strong>' + esc(entry.recipient_name) +
+        '</strong> (' + esc(entry.recipient_email) + ').<br><br>' +
+        'Après signature, vous recevrez automatiquement le certificat <strong>.cert.json</strong> ' +
+        'et le journal horodaté <strong>VCH</strong>.';
+      showSendStep('stepDone');
+    } catch (e) {
+      desc.innerHTML =
+        '<span style="color:var(--red);">Erreur lors de la finalisation.</span><br>' +
+        '<span style="color:var(--dim);font-size:14px;">' + esc(e.message) + '</span>';
+    }
+  }
 
-    } catch (e) { showError('Erreur : ' + e.message); showStep(3); }
-  });
+  // Au chargement : détection de ?session=X&alice_key=Y dans l'URL
+  async function checkAliceKeyInUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session');
+    const aliceKey = params.get('alice_key');
+    if (!sessionId || !aliceKey) return false;
+    if (!/^[0-9a-fA-F]{64}$/.test(aliceKey)) return false;
+    if (!/^[a-f0-9-]{36}$/.test(sessionId)) return false;
+
+    // Attend que currentOrg soit prêt (post-login ou auto-reconnect)
+    if (!currentOrg) {
+      // Laisser le login se faire normalement ; on retentera après.
+      const pollOrg = setInterval(() => {
+        if (currentOrg) { clearInterval(pollOrg); runFinalize(sessionId, aliceKey); }
+      }, 200);
+      setTimeout(() => clearInterval(pollOrg), 30000); // abandon après 30s
+      return true;
+    }
+    runFinalize(sessionId, aliceKey);
+    return true;
+  }
+  // Déclenchement au chargement de la page
+  checkAliceKeyInUrl();
 </script>
 </body>
 </html>
