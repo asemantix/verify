@@ -124,20 +124,16 @@
     </div>
 
     <h1>AUTHENTIX SIGN</h1>
-    <p class="tagline">Signature chiffrée de bout en bout</p>
 
     <h2>Vous avez un document à signer</h2>
-    <p class="intro">Pour recevoir votre document, partagez d'abord votre clé publique avec l'expéditeur.</p>
-
-    <!-- Filled by JS if ?sender= is present -->
-    <div id="senderInfo" class="sender-info" style="display:none;"></div>
 
     <div class="card">
       <p class="steps-label">Comment ça marche</p>
       <ol class="steps">
         <li>Installez l'app <strong>AUTHENTIX SIGN</strong>.</li>
-        <li>Ouvrez l'app → <strong>MA CLÉ PUBLIQUE</strong> → <strong>PARTAGER</strong>.<small>Appuyez sur ENVOYER dans votre application email — votre clé partira directement à l'expéditeur.</small></li>
-        <li>Revenez sur ce lien pour ouvrir votre document.</li>
+        <li>Ouvrez l'app.</li>
+        <li>Allez dans <strong>MA CLÉ PUBLIQUE</strong>.</li>
+        <li id="stepShare">Cliquez <strong>PARTAGER</strong>.<small id="stepShareDetail">Votre email s'ouvrira avec l'adresse de l'expéditeur pré-remplie. Appuyez sur ENVOYER.</small></li>
       </ol>
     </div>
 
@@ -148,10 +144,6 @@
     <a class="outline" id="btnOpenApp" href="#">
       J'AI DÉJÀ L'APP — OUVRIR
     </a>
-
-    <div class="return-msg">
-      <strong>Une fois votre clé publique partagée</strong>, revenez sur ce lien pour ouvrir votre document.
-    </div>
 
     <footer>
       <p>AUTHENTIX SIGN &mdash; <a href="https://authentix-sign.tech">authentix-sign.tech</a></p>
@@ -165,23 +157,19 @@
     location.replace('https:' + location.href.substring(location.protocol.length));
   }
 
-  // Read ?sender= from the URL to display who the public key will be sent to.
+  // Read ?sender= from the URL to inject the sender email into step 4.
   var params = new URLSearchParams(location.search);
   var sender = params.get('sender');
   if (sender) {
-    // Very light format validation — just ensure it looks like an email
     var emailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
     if (emailLike) {
       var esc = function(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-      var safeSender = esc(sender);
-      var el = document.getElementById('senderInfo');
-      el.innerHTML =
-        'Pour partager votre clé publique :<br>'
-        + '1. Ouvrez l\'app <strong>AUTHENTIX SIGN</strong><br>'
-        + '2. Allez dans <strong>MA CLÉ PUBLIQUE</strong><br>'
-        + '3. Cliquez <strong>PARTAGER</strong><br>'
-        + 'Votre clé sera envoyée automatiquement à <strong>' + safeSender + '</strong>.';
-      el.style.display = 'block';
+      var detail = document.getElementById('stepShareDetail');
+      if (detail) {
+        detail.innerHTML =
+          'Votre email s\'ouvrira avec l\'adresse de l\'expéditeur pré-remplie : '
+          + '<strong>' + esc(sender) + '</strong>. Appuyez sur ENVOYER.';
+      }
     }
   }
 
