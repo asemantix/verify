@@ -365,14 +365,17 @@
     <!-- SCREEN: DASHBOARD                                               -->
     <!-- ════════════════════════════════════════════════════════════════ -->
     <div id="screenDashboard" class="screen">
-      <p style="color:var(--dim);font-size:14px;">Connecté : <strong id="dashOrgName" style="color:var(--fg);"></strong> <span class="back-link" id="btnLogout" style="margin-left:12px;font-size:12px;">Déconnexion</span></p>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;">
+        <p style="color:var(--dim);font-size:14px;margin:0;">Connecté : <strong id="dashOrgName" style="color:var(--fg);"></strong></p>
+        <button id="btnLogout" style="background:transparent;color:var(--gold);border:1px solid var(--gold);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;letter-spacing:0.5px;cursor:pointer;white-space:nowrap;">DÉCONNEXION</button>
+      </div>
 
       <div class="dash-grid">
         <div class="dash-stat card"><div class="num" id="dashTotal">0</div><div class="label">Envoyés</div></div>
         <div class="dash-stat card"><div class="num" id="dashContacts">0</div><div class="label">Destinataires</div></div>
       </div>
 
-      <button class="gold" id="btnDashSend">ENVOYER UN DOCUMENT</button>
+      <button class="gold" id="btnDashSend" style="font-size:17px;padding:20px;">ENVOYER UN DOCUMENT</button>
       <button class="outline" id="btnDashContacts">MES DESTINATAIRES</button>
 
       <div style="margin-top:24px;">
@@ -747,8 +750,9 @@
     for (const e of envois) {
       const d = document.createElement('div');
       d.className = 'history-item';
+      const label = e.doc_name ? esc(e.doc_name) : 'Document signé';
       d.innerHTML = '<div class="dest">' + esc(e.destinataire_nom) + '</div>'
-        + '<div class="hash">' + esc((e.doc_hash || '').substring(0,16)) + '…</div>'
+        + '<div class="hash" style="color:var(--fg);font-family:inherit;">' + label + '</div>'
         + '<div class="date">' + esc(e.created_at || '') + ' — ' + esc(e.statut) + '</div>';
       list.appendChild(d);
     }
