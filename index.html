@@ -119,19 +119,6 @@
     .stepper .bar.done { background: var(--green); }
     .step-title { color: var(--gold); font-size: 18px; font-weight: 700; margin: 0 0 16px; text-align: center; }
 
-    .invite-box { margin-bottom: 18px; }
-    .invite-box p {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--gold);
-      border-left: 3px solid var(--gold);
-      padding: 12px 16px;
-      background: rgba(201,168,76,0.08);
-      border-radius: 6px;
-      margin: 0 0 16px;
-      line-height: 1.5;
-      text-align: left;
-    }
     .contact-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 10px; }
     .contact-item .name { color: var(--fg); font-size: 18px; font-weight: 700; margin-bottom: 4px; }
     .contact-item .email { color: var(--dim); font-size: 16px; margin-bottom: 6px; }
@@ -453,13 +440,11 @@
           <input type="hidden" id="expiresDate">
           <input type="hidden" id="pubkeyInput">
 
+          <p style="color:var(--dim);font-size:13px;margin:4px 0 14px;text-align:center;line-height:1.5;">Après envoi, un simple clic sur l'email d'Alice suffit pour finaliser.</p>
+
           <button class="gold" id="btnOneShotSend" disabled>ENVOYER</button>
           <p id="inviteSuccess" style="display:none;color:var(--green);font-size:15px;font-weight:600;margin-top:14px;text-align:center;line-height:1.55;"></p>
           <p id="inviteError" style="display:none;color:var(--red);font-size:14px;margin-top:10px;text-align:center;"></p>
-        </div>
-
-        <div class="invite-box" style="margin-top:20px;">
-          <p>Vous recevrez un email d'Alice contenant un lien. Cliquez-le pour finaliser l'envoi automatiquement.</p>
         </div>
       </div>
 
@@ -471,27 +456,6 @@
         </section>
       </div>
 
-      <!-- Step finalize — MONABANQ clique le lien d'Alice -->
-      <div id="stepFinalize" class="step">
-        <div class="tuto-card">
-          <div class="tuto-head">
-            <div class="step-icon">
-              <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z"/><path d="M8 12l3 3 5-6"/></svg>
-            </div>
-            <h2 style="color:var(--green);">Clé publique reçue ✓</h2>
-            <p class="desc" id="finalizeDesc">Finalisation de l'envoi…</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step success — tout est envoyé -->
-      <div id="stepDone" class="step">
-        <div class="success">
-          <h2>Document envoyé ✓</h2>
-          <p style="color:var(--fg);font-size:15px;margin:12px 0;" id="doneMessage">Le lien de signature a été envoyé à votre destinataire. Après signature, vous recevrez automatiquement le certificat et le journal horodaté.</p>
-        </div>
-        <button class="gold" id="btnNewSend" style="margin-top:20px;">ENVOYER UN AUTRE DOCUMENT</button>
-      </div>
     </div>
 
     <div id="errorBox" class="error" style="display:none;"></div>
@@ -610,8 +574,7 @@
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
     document.getElementById(id).classList.add('active');
   }
-  // Sous-étape de l'écran screenSend : stepOneShot, stepProcessing,
-  // stepFinalize, stepDone. (L'ancien stepper 1-2-3 est supprimé.)
+  // Sous-étape de l'écran screenSend : stepOneShot, stepProcessing.
   function showSendStep(id) {
     document.querySelectorAll('#screenSend .step').forEach(el => el.classList.remove('active'));
     const el = document.getElementById(id);
@@ -1019,7 +982,7 @@
       document.getElementById('btnOneShotSend').disabled = true;
       showInviteSuccess(
         '✅ Invitation envoyée à <strong>' + esc(rName) + '</strong>.<br>' +
-        'Vous recevrez un email avec un lien à cliquer pour finaliser automatiquement l\'envoi.'
+        'Attendez l\'email d\'Alice — un simple clic suffira pour finaliser l\'envoi.'
       );
     } catch (e) {
       showSendStep('stepOneShot');
@@ -1027,29 +990,23 @@
     }
   });
 
-  // Bouton "ENVOYER UN AUTRE DOCUMENT" depuis stepDone
-  document.getElementById('btnNewSend').onclick = () => {
-    document.getElementById('btnDashSend').click();
-  };
-
   // ── Finalisation déclenchée par ?session=X&alice_key=Y ─────────────
   async function runFinalize(sessionId, aliceKeyHex) {
     showScreen('screenSend');
-    showSendStep('stepFinalize');
-    const desc = document.getElementById('finalizeDesc');
-    desc.textContent = 'Récupération du document…';
+    showSendStep('stepOneShot');
+    document.getElementById('btnOneShotSend').disabled = true;
+    hideInviteError();
+    showInviteSuccess('Récupération du document…');
 
     try {
       const entry = await idbGet(sessionId);
       if (!entry) {
-        desc.innerHTML =
-          '<span style="color:var(--red);">Session introuvable.</span><br>' +
-          '<span style="color:var(--dim);font-size:14px;">Vous n\'êtes peut-être pas sur le même navigateur que lors de l\'envoi initial. ' +
-          'Revenez sur ce lien depuis le navigateur utilisé pour l\'envoi.</span>';
+        hideInviteSuccess();
+        showInviteError('Session introuvable. Revenez sur ce lien depuis le navigateur utilisé pour l\'envoi initial.');
         return;
       }
 
-      desc.textContent = 'Chiffrement du document pour votre destinataire…';
+      showInviteSuccess('Chiffrement du document pour votre destinataire…');
       const aliceEd25519Pub = hexDecode(aliceKeyHex);
       const aliceX25519Pub = edwardsToMontgomeryPub(aliceEd25519Pub);
       const ephPriv = crypto.getRandomValues(new Uint8Array(32));
@@ -1061,7 +1018,7 @@
       const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, cryptoKey, entry.pdf_bytes);
       const ciphertext = new Uint8Array(encrypted);
 
-      desc.textContent = 'Envoi chiffré vers le relais…';
+      showInviteSuccess('Envoi chiffré vers le relais…');
       const blob = { eph_pub: hexEncode(ephPub), nonce: hexEncode(nonce), ciphertext: btoa(String.fromCharCode(...ciphertext)) };
       let uploadResult;
       try {
@@ -1088,7 +1045,7 @@
       const payloadB64 = btoa(unescape(encodeURIComponent(payloadJson)));
       const deepLink = 'https://authentix-sign.tech/sign?payload=' + encodeURIComponent(payloadB64);
 
-      desc.textContent = 'Envoi du lien de signature à ' + entry.recipient_name + '…';
+      showInviteSuccess('Envoi du lien de signature à ' + esc(entry.recipient_name) + '…');
       await api('POST', '/send-signing-link', {
         recipient_name: entry.recipient_name,
         recipient_email: entry.recipient_email,
@@ -1101,16 +1058,14 @@
       // Nettoyage URL (enlève les params sensibles de l'adresse)
       history.replaceState({}, '', window.location.pathname);
 
-      document.getElementById('doneMessage').innerHTML =
-        'Le lien de signature a été envoyé à <strong>' + esc(entry.recipient_name) +
-        '</strong> (' + esc(entry.recipient_email) + ').<br><br>' +
-        'Après signature, vous recevrez automatiquement le certificat <strong>.cert.json</strong> ' +
-        'et le journal horodaté <strong>VCH</strong>.';
-      showSendStep('stepDone');
+      showInviteSuccess(
+        '✅ Document envoyé à <strong>' + esc(entry.recipient_name) +
+        '</strong> (' + esc(entry.recipient_email) + ').<br>' +
+        'Après signature, vous recevrez le certificat <strong>.cert.json</strong> et le journal horodaté <strong>VCH</strong>.'
+      );
     } catch (e) {
-      desc.innerHTML =
-        '<span style="color:var(--red);">Erreur lors de la finalisation.</span><br>' +
-        '<span style="color:var(--dim);font-size:14px;">' + esc(e.message) + '</span>';
+      hideInviteSuccess();
+      showInviteError('Erreur lors de la finalisation : ' + e.message);
     }
   }
 
