@@ -2,8 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='18 18 72 72'%3E%3Cpath fill='%23c9a84c' d='M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z'/%3E%3C/svg%3E" />
   <title>AUTHENTIX SIGN — Envoyer un document</title>
@@ -273,7 +274,7 @@
   <!-- Fix radical: force screenLogin à chaque chargement / restauration bfcache -->
   <script>
   (function() {
-    document.addEventListener('DOMContentLoaded', function() {
+    function forceResetToLogin() {
       document.querySelectorAll('.screen, .step').forEach(function(el) {
         el.classList.remove('active');
       });
@@ -281,14 +282,10 @@
       if (login) login.classList.add('active');
       var step1 = document.getElementById('step1');
       if (step1) step1.classList.add('active');
-    });
+    }
+    document.addEventListener('DOMContentLoaded', forceResetToLogin);
     window.addEventListener('pageshow', function(e) {
-      if (!e.persisted) return;
-      document.querySelectorAll('.screen, .step').forEach(function(el) {
-        el.classList.remove('active');
-      });
-      var login = document.getElementById('screenLogin');
-      if (login) login.classList.add('active');
+      forceResetToLogin();
     });
   })();
   </script>
