@@ -31,7 +31,6 @@
     .logo {
       display: inline-flex; align-items: center; justify-content: center;
       width: 80px; height: 80px;
-      border: 2px solid var(--gold); border-radius: 16px;
       margin-bottom: 18px;
     }
     h1 { color: var(--gold); font-size: 28px; margin: 0 0 8px; letter-spacing: 1px; }
@@ -120,7 +119,7 @@
 
     <div class="logo">
       <svg viewBox="18 18 72 72" width="56" height="56" xmlns="http://www.w3.org/2000/svg">
-        <path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/>
+        <rect x="20" y="20" width="68" height="68" rx="14" ry="14" fill="none" stroke="#c9a84c" stroke-width="3"/><path fill="#c9a84c" d="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z"/>
       </svg>
     </div>
 
@@ -137,7 +136,7 @@
       <p class="steps-label">Comment ça marche</p>
       <ol class="steps">
         <li>Installez l'app <strong>AUTHENTIX SIGN</strong>.</li>
-        <li>Ouvrez l'app → <strong>MA CLÉ PUBLIQUE</strong> → <strong>PARTAGER</strong>.<small>Votre clé sera envoyée automatiquement à l'expéditeur.</small></li>
+        <li>Ouvrez l'app → <strong>MA CLÉ PUBLIQUE</strong> → <strong>PARTAGER</strong>.<small>Appuyez sur ENVOYER dans votre application email — votre clé partira directement à l'expéditeur.</small></li>
         <li>Revenez sur ce lien pour ouvrir votre document.</li>
       </ol>
     </div>
@@ -148,10 +147,6 @@
 
     <a class="outline" id="btnOpenApp" href="#">
       J'AI DÉJÀ L'APP — OUVRIR
-    </a>
-
-    <a class="gold" id="btnMailKey" href="#" style="display:none;background:transparent;color:var(--gold);border:2px solid var(--gold);">
-      ENVOYER MA CLÉ PAR EMAIL
     </a>
 
     <div class="return-msg">
@@ -181,16 +176,12 @@
       var safeSender = esc(sender);
       var el = document.getElementById('senderInfo');
       el.innerHTML =
-        'Ouvrez l\'app <strong>AUTHENTIX SIGN</strong> et cliquez <strong>PARTAGER MA CLÉ</strong> '
-        + 'pour envoyer votre clé à <strong>' + safeSender + '</strong>.';
+        'Pour partager votre clé publique :<br>'
+        + '1. Ouvrez l\'app <strong>AUTHENTIX SIGN</strong><br>'
+        + '2. Allez dans <strong>MA CLÉ PUBLIQUE</strong><br>'
+        + '3. Cliquez <strong>PARTAGER</strong><br>'
+        + 'Votre clé sera envoyée automatiquement à <strong>' + safeSender + '</strong>.';
       el.style.display = 'block';
-
-      // Bouton mailto: — fallback direct sans passer par l'app.
-      var mailtoUrl = 'mailto:' + encodeURIComponent(sender)
-        + '?subject=' + encodeURIComponent('Ma clé publique AUTHENTIX SIGN');
-      var btnMail = document.getElementById('btnMailKey');
-      btnMail.href = mailtoUrl;
-      btnMail.style.display = 'block';
     }
   }
 
