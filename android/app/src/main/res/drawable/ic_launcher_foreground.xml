@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple "A" glyph in AUTHENTIX gold on transparent background.
+     Adaptive icons require a 108x108dp canvas with the foreground art
+     centred in the inner 72x72dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#c9a84c"
+        android:pathData="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z" />
+</vector>

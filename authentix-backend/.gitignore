@@ -1,0 +1,5 @@
+node_modules/
+.wrangler/
+dkim_private.pem
+dkim_public.pem
+*.log

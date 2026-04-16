@@ -1,0 +1,20 @@
+# Rust
+authentix-core/target/
+authentix-core/ndk-*.sh
+authentix-core/ndk-*.cmd
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/*.jks
+android/gradle/
+
+# JNI native libs (built from authentix-core, ship in APK)
+# Tracked intentionally:
+# android/app/src/main/jniLibs/
+
+# OS
+.DS_Store
+Thumbs.db

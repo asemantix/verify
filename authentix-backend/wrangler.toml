@@ -1,0 +1,8 @@
+name = "authentix-backend"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "authentix-db"
+database_id = "d6370a84-ca82-40b2-985d-45b3ef6f2fdc"

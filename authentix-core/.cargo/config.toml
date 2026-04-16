@@ -1,0 +1,8 @@
+[target.aarch64-linux-android]
+linker = "C:\\Users\\Diego DUBOIS\\Desktop\\DRIVE-READY\\authentix-core\\ndk-aarch64-link.cmd"
+
+[target.armv7-linux-androideabi]
+linker = "C:\\Users\\Diego DUBOIS\\Desktop\\DRIVE-READY\\authentix-core\\ndk-armv7-link.cmd"
+
+[target.x86_64-linux-android]
+linker = "C:\\Users\\Diego DUBOIS\\Desktop\\DRIVE-READY\\authentix-core\\ndk-x86_64-link.cmd"
