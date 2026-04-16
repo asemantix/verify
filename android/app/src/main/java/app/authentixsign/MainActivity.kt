@@ -83,9 +83,12 @@ class MainActivity : FragmentActivity() {
         container.removeAllViews()
         val root = screenRoot()
         root.addView(accentBar(GOLD))
-        root.addView(spacer(40))
 
-        val body = bodyPad()
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(32), dp(24), dp(24))
+            layoutParams = lp()
+        }
         body.addView(eyebrow("Premier lancement"))
         body.addView(titleSerif("Créez votre\nidentité", GOLD))
         body.addView(sub("Posez votre empreinte pour générer vos clés cryptographiques. Elles ne quitteront jamais cet appareil."))
@@ -554,12 +557,16 @@ class MainActivity : FragmentActivity() {
             setPadding(dp(20), dp(20), dp(20), dp(20))
             background = GradientDrawable().apply { setColor(bg); setStroke(dp(1), border); cornerRadius = dp(6).toFloat() }
             layoutParams = lp().apply { bottomMargin = dp(14) }
+            isClickable = true
+            isFocusable = true
 
             addView(FingerprintView(this@MainActivity, accent, intense).apply {
                 layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply { bottomMargin = dp(8) }
+                isClickable = false
             })
             addView(TextView(this@MainActivity).apply {
                 text = label.uppercase(); typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(accent); letterSpacing = 0.1f
+                isClickable = false
             })
             setOnClickListener { onClick() }
         }
