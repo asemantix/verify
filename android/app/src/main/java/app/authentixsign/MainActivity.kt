@@ -210,8 +210,10 @@ class MainActivity : FragmentActivity() {
 
         val body = bodyPad()
         body.addView(eyebrow("Prêt à signer"))
-        body.addView(titleSerif("Scannez\nle QR", PURPLE))
-        body.addView(sub("Scannez le code QR reçu par email ou SMS pour accéder au document."))
+        body.addView(titleSerif("Accueil", PURPLE))
+        body.addView(sub("Authentix Sign vous permet de recevoir, lire et signer des documents de façon sécurisée — tout se passe sur votre téléphone, sans serveur."))
+        body.addView(spacer(6))
+        body.addView(guideText("Scannez un QR code pour ouvrir un document, ou utilisez les boutons ci-dessous pour envoyer, gérer vos contacts ou partager votre identité."))
         body.addView(spacer(14))
 
         // QR zone
@@ -245,7 +247,8 @@ class MainActivity : FragmentActivity() {
         val body = bodyPad()
         body.addView(eyebrow("Document reçu"))
         body.addView(titleSerif("Confirmez\nla réception", PURPLE))
-        body.addView(sub("Posez votre empreinte pour déchiffrer ce document."))
+        body.addView(sub("Un document chiffré vous a été envoyé. Seul votre appareil peut l'ouvrir."))
+        body.addView(guideText("Posez votre empreinte ci-dessous pour prouver que c'est bien vous et déchiffrer le document en toute sécurité."))
         body.addView(spacer(10))
 
         // Sender info card
@@ -304,6 +307,7 @@ class MainActivity : FragmentActivity() {
         val body = bodyPad()
         body.addView(eyebrow("Lecture obligatoire"))
         body.addView(titleSerif("Lisez le\ndocument", PURPLE))
+        body.addView(guideText("Prenez le temps de lire le document ci-dessous. Le bouton de signature s'activera après 10 secondes de lecture."))
         body.addView(spacer(10))
 
         // Document info card
@@ -386,7 +390,8 @@ class MainActivity : FragmentActivity() {
         val body = bodyPad()
         body.addView(eyebrow("Signature définitive"))
         body.addView(titleSerif("Signez\nmaintenant", PURPLE))
-        body.addView(sub("Cette empreinte sera fusionnée de façon irréversible avec le document et vos identifiants matériels."))
+        body.addView(sub("Dernière étape. Votre empreinte scellera définitivement le document."))
+        body.addView(guideText("En posant votre doigt, vous confirmez avoir lu le document et acceptez de le signer. Cette action est irréversible — votre signature sera liée à ce document de façon permanente. Aucune donnée ne quitte votre téléphone."))
         body.addView(spacer(14))
 
         val status = sub(""); status.gravity = Gravity.CENTER
@@ -530,7 +535,8 @@ class MainActivity : FragmentActivity() {
         body.addView(backLink { showScreen(Screen.HOME) })
         body.addView(eyebrow("Nouveau document"))
         body.addView(titleSerif("Envoyer", PURPLE))
-        body.addView(sub("Sélectionnez un PDF et un destinataire. Le document sera chiffré pour son appareil uniquement."))
+        body.addView(sub("Envoyez un document à signer de façon sécurisée."))
+        body.addView(guideText("① Choisissez un fichier PDF\n② Sélectionnez le destinataire dans vos contacts\n③ Remplissez la référence et l'objet\n④ Appuyez sur Envoyer — le document sera chiffré pour le téléphone du destinataire uniquement"))
         body.addView(spacer(18))
 
         // PDF picker card
@@ -572,7 +578,8 @@ class MainActivity : FragmentActivity() {
         body.addView(backLink { showScreen(Screen.HOME) })
         body.addView(eyebrow("Carnet"))
         body.addView(titleSerif("Contacts", PURPLE))
-        body.addView(sub("Ajoutez des contacts en scannant leur QR code ou en ouvrant un fichier .authentix-id."))
+        body.addView(sub("Vos contacts sont les personnes à qui vous pouvez envoyer des documents chiffrés."))
+        body.addView(guideText("Pour ajouter un contact, scannez son QR code (en face à face) ou ouvrez le fichier .authentix-id qu'il vous a envoyé. Chaque contact est lié à un appareil précis."))
         body.addView(spacer(18))
 
         // Empty state
@@ -636,9 +643,10 @@ class MainActivity : FragmentActivity() {
 
         val body = bodyPad()
         body.addView(backLink { showScreen(Screen.HOME) })
-        body.addView(eyebrow("Clé publique"))
+        body.addView(eyebrow("Carte d'identité numérique"))
         body.addView(titleSerif("Mon\nidentité", GOLD))
-        body.addView(sub("Partagez ce QR code ou le fichier .authentix-id pour qu'un correspondant puisse vous envoyer un document chiffré."))
+        body.addView(sub("Votre carte d'identité numérique. Partagez-la avec les personnes qui doivent vous envoyer des documents chiffrés."))
+        body.addView(guideText("Comment partager :\n① Montrez le QR code ci-dessous à scanner (en face à face)\n② Envoyez-le par email avec le bouton « Partager »\n③ Exportez un fichier .authentix-id à transmettre"))
         body.addView(spacer(14))
 
         val spk = prefs().getString("signing_pk", "") ?: ""
@@ -875,6 +883,14 @@ class MainActivity : FragmentActivity() {
     private fun sub(text: String) = TextView(this).apply {
         this.text = text; typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f); setTextColor(FG3)
         setLineSpacing(0f, 1.6f); layoutParams = lp().apply { bottomMargin = dp(14) }
+    }
+
+    private fun guideText(text: String) = TextView(this).apply {
+        this.text = text; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG2)
+        setLineSpacing(0f, 1.5f)
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        background = GradientDrawable().apply { setColor(Color.parseColor("#f0efe8")); cornerRadius = dp(4).toFloat() }
+        layoutParams = lp().apply { bottomMargin = dp(10) }
     }
 
     private fun spacer(h: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(h)) }
