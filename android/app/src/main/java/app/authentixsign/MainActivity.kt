@@ -24,7 +24,7 @@ import androidx.fragment.app.FragmentActivity
 
 class MainActivity : FragmentActivity() {
 
-    private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND, CONTACTS }
+    private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND, CONTACTS, MY_ID }
 
     // ── Design tokens (from authentix_design_system.html) ───────────────
     private val BG       = Color.parseColor("#f5f4f0")
@@ -144,6 +144,7 @@ class MainActivity : FragmentActivity() {
             Screen.SIGN     -> buildSign()
             Screen.SEND     -> buildSend()
             Screen.CONTACTS -> buildContacts()
+            Screen.MY_ID    -> buildMyId()
         }))
     }
 
@@ -173,6 +174,8 @@ class MainActivity : FragmentActivity() {
         body.addView(ctaOutline("Envoyer un document") { showScreen(Screen.SEND) })
         body.addView(spacer(8))
         body.addView(ctaOutline("Contacts") { showScreen(Screen.CONTACTS) })
+        body.addView(spacer(8))
+        body.addView(cta("Mon identité / Mon QR", GOLD) { showScreen(Screen.MY_ID) })
 
         root.addView(body)
         root.addView(dots(1, 5, PURPLE))
@@ -456,6 +459,140 @@ class MainActivity : FragmentActivity() {
     }
 
     // ════════════════════════════════════════════════════════════════════
+    //  8. MY_ID — Mon identité / Mon QR
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun buildMyId(): LinearLayout {
+        val root = screenRoot()
+        root.addView(accentBar(GOLD))
+        root.addView(topBar("Authentix Sign", GOLD, stepLabel("Mon identité")))
+
+        val body = bodyPad()
+        body.addView(backLink { showScreen(Screen.HOME) })
+        body.addView(eyebrow("Clé publique"))
+        body.addView(titleSerif("Mon\nidentité", GOLD))
+        body.addView(sub("Partagez ce QR code ou le fichier .authentix-id pour qu'un correspondant puisse vous envoyer un document chiffré."))
+        body.addView(spacer(14))
+
+        val spk = prefs().getString("signing_pk", "") ?: ""
+        val epk = prefs().getString("encryption_pk", "") ?: ""
+        val markersJson = prefs().getString("markers", "{}") ?: "{}"
+        val skB64 = prefs().getString("signing_sk", "") ?: ""
+
+        // QR code (contains the kit JSON)
+        val kitJson = buildKitJson(spk, epk, markersJson, skB64)
+        val qrBitmap = generateQr(kitJson)
+
+        if (qrBitmap != null) {
+            val qrContainer = LinearLayout(this).apply {
+                gravity = Gravity.CENTER; setPadding(dp(16), dp(16), dp(16), dp(16))
+                background = card_bg(); layoutParams = lp().apply { bottomMargin = dp(14) }
+            }
+            val iv = android.widget.ImageView(this).apply {
+                setImageBitmap(qrBitmap); scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                layoutParams = LinearLayout.LayoutParams(dp(200), dp(200))
+            }
+            qrContainer.addView(iv)
+            body.addView(qrContainer)
+        } else {
+            body.addView(sub("Erreur de génération du QR code").apply { setTextColor(RED) })
+        }
+        body.addView(spacer(14))
+
+        // Identity card
+        val idCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = GradientDrawable().apply { setColor(GOLD_L); setStroke(dp(1), goldBorder()); cornerRadius = dp(4).toFloat() }
+            layoutParams = lp().apply { bottomMargin = dp(14) }
+        }
+        idCard.addView(certRow("Appareil", "${Build.MANUFACTURER} ${Build.MODEL}", GOLD))
+        idCard.addView(certRow("Clé signature", trunc(spk), GOLD))
+        idCard.addView(certRow("Clé chiffrement", trunc(epk), GOLD))
+        idCard.addView(certRow("Compteur τ", MonotonicCounter.peek(this).toString(), GOLD))
+        body.addView(idCard)
+
+        // Full keys (copyable)
+        body.addView(eyebrow("Clés complètes (appui long = copier)"))
+        body.addView(spacer(6))
+        body.addView(copyableKey("signing_pk", spk))
+        body.addView(spacer(4))
+        body.addView(copyableKey("encryption_pk", epk))
+        body.addView(spacer(24))
+
+        // Share button
+        body.addView(cta("Partager par email", GOLD) { shareKit(kitJson) })
+        body.addView(spacer(8))
+        body.addView(ctaOutline("Exporter .authentix-id") { exportKit(kitJson) })
+
+        root.addView(body)
+        return root
+    }
+
+    private fun buildKitJson(spk: String, epk: String, markersJson: String, skB64: String): String {
+        return try {
+            val sk = android.util.Base64.decode(skB64, android.util.Base64.DEFAULT)
+            AuthentixCore.buildKit(spk, epk, sk, markersJson, Build.MANUFACTURER + " " + Build.MODEL, "")
+        } catch (e: Exception) {
+            org.json.JSONObject().apply {
+                put("signing_pk", spk)
+                put("encryption_pk", epk)
+                put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
+            }.toString()
+        }
+    }
+
+    private fun generateQr(data: String): android.graphics.Bitmap? {
+        return try {
+            val hints = mapOf(com.google.zxing.EncodeHintType.MARGIN to 1)
+            val matrix = com.google.zxing.qrcode.QRCodeWriter().encode(
+                data, com.google.zxing.BarcodeFormat.QR_CODE, 512, 512, hints
+            )
+            val w = matrix.width; val h = matrix.height
+            val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.RGB_565)
+            for (x in 0 until w) for (y in 0 until h)
+                bmp.setPixel(x, y, if (matrix.get(x, y)) Color.parseColor("#1a1a18") else Color.parseColor("#f5f4f0"))
+            bmp
+        } catch (e: Exception) { null }
+    }
+
+    private fun copyableKey(label: String, value: String): TextView {
+        return TextView(this).apply {
+            text = "$label:\n$value"
+            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(FG3)
+            setLineSpacing(0f, 1.4f); setTextIsSelectable(true)
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            background = card_bg()
+            layoutParams = lp()
+        }
+    }
+
+    private fun shareKit(kitJson: String) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "AUTHENTIX SIGN — Ma clé publique")
+            putExtra(Intent.EXTRA_TEXT, kitJson)
+        }
+        startActivity(Intent.createChooser(intent, "Partager mon identité"))
+    }
+
+    private fun exportKit(kitJson: String) {
+        try {
+            val file = java.io.File(cacheDir, "mon-identite.authentix-id")
+            file.writeText(kitJson)
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/x-authentix"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "AUTHENTIX SIGN — Mon identité")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Exporter .authentix-id"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur export : ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     //  DESIGN SYSTEM — Composants réutilisables
     // ════════════════════════════════════════════════════════════════════
 
@@ -683,10 +820,11 @@ class MainActivity : FragmentActivity() {
     @Deprecated("Use onBackPressedDispatcher")
     override fun onBackPressed() {
         when (currentScreen) {
-            Screen.READ -> showScreen(Screen.RECEIVE)
-            Screen.SIGN -> showScreen(Screen.READ)
-            Screen.HOME -> super.onBackPressed()
-            else -> showScreen(Screen.HOME)
+            Screen.READ  -> showScreen(Screen.RECEIVE)
+            Screen.SIGN  -> showScreen(Screen.READ)
+            Screen.MY_ID -> showScreen(Screen.HOME)
+            Screen.HOME  -> super.onBackPressed()
+            else         -> showScreen(Screen.HOME)
         }
     }
 }
