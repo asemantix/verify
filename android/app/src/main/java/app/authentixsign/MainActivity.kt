@@ -50,6 +50,15 @@ class MainActivity : FragmentActivity() {
     private var currentScreen = Screen.HOME
     private var isSetupDone = false
 
+    // ── Document flow state ──────────────────────────────────────────────
+    private var pendingPayloadJson: String? = null
+    private var pendingDocRef: String = ""
+    private var pendingDocSubject: String = ""
+    private var pendingSenderName: String = ""
+    private var pendingSenderPk: String = ""
+    private var decryptedPdfBytes: ByteArray? = null
+    private var lastAttestationJson: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         container = FrameLayout(this).apply {
@@ -66,10 +75,52 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handleIntent(intent) }
 
     private fun handleIntent(intent: Intent?) {
-        val path = intent?.data?.path ?: return
+        val uri = intent?.data ?: return
+        val path = uri.path ?: uri.toString()
+
         when {
-            path.endsWith(".authentix")    -> showScreen(Screen.RECEIVE)
-            path.endsWith(".authentix-id") -> showScreen(Screen.CONTACTS)
+            path.endsWith(".authentix") || intent.type == "application/x-authentix" -> {
+                if (!isSetupDone) {
+                    Toast.makeText(this, "Identité non créée — lancez l'app d'abord", Toast.LENGTH_LONG).show()
+                    return
+                }
+                try {
+                    val bytes = contentResolver.openInputStream(uri)?.readBytes()
+                        ?: throw Exception("Impossible de lire le fichier")
+                    val jsonStr = String(bytes, Charsets.UTF_8)
+                    val doc = org.json.JSONObject(jsonStr)
+
+                    // Extract payload (the EncryptedPayload that Rust decrypt() expects)
+                    val payload = doc.getJSONObject("payload")
+                    pendingPayloadJson = payload.toString()
+
+                    // Extract sender info
+                    val sender = doc.optJSONObject("sender")
+                    pendingSenderName = sender?.optString("name", "Inconnu") ?: "Inconnu"
+                    pendingSenderPk = sender?.optString("signing_pk", "") ?: ""
+
+                    // Extract doc ref/subject
+                    pendingDocRef = doc.optString("ref", "DOC-${System.currentTimeMillis()}")
+                    pendingDocSubject = doc.optString("subject", "Document reçu")
+
+                    // Verify recipient matches me
+                    val recipient = doc.optJSONObject("recipient")
+                    val recipientPk = recipient?.optString("encryption_pk", "") ?: ""
+                    val myPk = prefs().getString("encryption_pk", "") ?: ""
+                    if (recipientPk.isNotEmpty() && myPk.isNotEmpty() && recipientPk != myPk) {
+                        Toast.makeText(this, "Ce document n'est pas pour vous", Toast.LENGTH_LONG).show()
+                        return
+                    }
+
+                    showScreen(Screen.RECEIVE)
+
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Erreur lecture : ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+            path.endsWith(".authentix-id") -> {
+                showScreen(Screen.CONTACTS)
+            }
         }
     }
 
@@ -192,19 +243,49 @@ class MainActivity : FragmentActivity() {
         root.addView(topBar("Authentix Sign", PURPLE, stepLabel("Étape 1/3")))
 
         val body = bodyPad()
-        body.addView(eyebrow("Autorisation de réception"))
+        body.addView(eyebrow("Document reçu"))
         body.addView(titleSerif("Confirmez\nla réception", PURPLE))
-        body.addView(sub("Posez votre empreinte pour confirmer que vous recevez ce document volontairement."))
-        body.addView(spacer(14))
+        body.addView(sub("Posez votre empreinte pour déchiffrer ce document."))
+        body.addView(spacer(10))
 
-        body.addView(bioZoneFull(PURPLE_L, purpleBorder(), PURPLE, "Poser l'empreinte", false) {
-            BiometricHelper.authenticate(this, "Réception du document", "Confirmez votre identité",
-                onSuccess = { showScreen(Screen.READ) },
-                onError   = { msg -> Toast.makeText(this, "Erreur : $msg", Toast.LENGTH_SHORT).show() })
+        // Sender info card
+        val infoCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = GradientDrawable().apply { setColor(PURPLE_L); setStroke(dp(1), purpleBorder()); cornerRadius = dp(4).toFloat() }
+            layoutParams = lp().apply { bottomMargin = dp(14) }
+        }
+        infoCard.addView(certRow("Expéditeur", pendingSenderName, PURPLE))
+        infoCard.addView(certRow("Objet", pendingDocSubject, PURPLE))
+        infoCard.addView(certRow("Référence", pendingDocRef, PURPLE))
+        body.addView(infoCard)
+
+        val status = sub(""); status.gravity = Gravity.CENTER
+        body.addView(status)
+
+        body.addView(bioZoneFull(PURPLE_L, purpleBorder(), PURPLE, "Déchiffrer le document", false) {
+            status.text = "Authentification…"; status.setTextColor(FG3)
+            BiometricHelper.authenticate(this, "Déchiffrer le document", "Confirmez votre identité",
+                onSuccess = { _ ->
+                    status.text = "Déchiffrement en cours…"; status.setTextColor(FG3)
+                    try {
+                        val encSkB64 = prefs().getString("encryption_sk", "") ?: ""
+                        val encSk = android.util.Base64.decode(encSkB64, android.util.Base64.DEFAULT)
+                        val result = AuthentixCore.decrypt(encSk, pendingPayloadJson!!)
+                        if (result.startsWith("ERROR:")) {
+                            status.text = result.removePrefix("ERROR:"); status.setTextColor(RED)
+                        } else {
+                            decryptedPdfBytes = android.util.Base64.decode(result, android.util.Base64.DEFAULT)
+                            status.text = "Déchiffré ✓ (${decryptedPdfBytes!!.size} octets)"; status.setTextColor(GREEN)
+                            container.postDelayed({ showScreen(Screen.READ) }, 800)
+                        }
+                    } catch (e: Exception) {
+                        status.text = "Erreur : ${e.message}"; status.setTextColor(RED)
+                    }
+                },
+                onError = { msg -> status.text = "Erreur : $msg"; status.setTextColor(RED) })
         })
-        body.addView(spacer(14))
-
-        body.addView(docPreview(6))
+        body.addView(spacer(8))
+        body.addView(ctaOutline("Annuler") { pendingPayloadJson = null; showScreen(Screen.HOME) })
 
         root.addView(body)
         root.addView(dots(2, 5, PURPLE))
@@ -225,12 +306,47 @@ class MainActivity : FragmentActivity() {
         body.addView(titleSerif("Lisez le\ndocument", PURPLE))
         body.addView(spacer(10))
 
+        // Document info card
+        val pdf = decryptedPdfBytes
+        if (pdf != null) {
+            val hashHex = sha3Hex(pdf)
+            val infoCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
+                background = GradientDrawable().apply { setColor(GREEN_L); setStroke(dp(1), Color.argb(46, 45, 122, 45)); cornerRadius = dp(4).toFloat() }
+                layoutParams = lp().apply { bottomMargin = dp(10) }
+            }
+            infoCard.addView(certRow("État", "Déchiffré ✓", GREEN))
+            infoCard.addView(certRow("Taille", "${pdf.size} octets", GREEN))
+            infoCard.addView(certRow("H(doc)", "${hashHex.take(8)}…${hashHex.takeLast(4)}", GREEN))
+            infoCard.addView(certRow("Référence", pendingDocRef, GREEN))
+            body.addView(infoCard)
+
+            // Render first page with PdfRenderer if possible
+            val pdfBitmap = renderPdfFirstPage(pdf)
+            if (pdfBitmap != null) {
+                val iv = android.widget.ImageView(this).apply {
+                    setImageBitmap(pdfBitmap)
+                    scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                    adjustViewBounds = true
+                    setPadding(dp(2), dp(2), dp(2), dp(2))
+                    background = card_bg()
+                    layoutParams = lp().apply { bottomMargin = dp(14) }
+                }
+                body.addView(iv)
+            } else {
+                body.addView(docPreview(10))
+            }
+        } else {
+            body.addView(docPreview(10))
+        }
+        body.addView(spacer(6))
+
         // Timer bar
         val timerRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             layoutParams = lp().apply { bottomMargin = dp(14) }
         }
-        val timerTxt = timerLabel("1:05")
+        val timerTxt = timerLabel("0:10")
         val timerElapsed = timerLabel("0:00")
         val timerBarBg = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(0, dp(3), 1f).apply { setMargins(dp(10), 0, dp(10), 0) }
@@ -239,18 +355,14 @@ class MainActivity : FragmentActivity() {
         timerRow.addView(timerElapsed); timerRow.addView(timerBarBg); timerRow.addView(timerTxt)
         body.addView(timerRow)
 
-        // PDF placeholder (long)
-        body.addView(docPreview(10))
-        body.addView(spacer(14))
-
-        body.addView(sub("Faites défiler jusqu'en bas pour activer la signature").apply { gravity = Gravity.CENTER; setTextColor(FG4) })
+        body.addView(sub("Lecture obligatoire — le bouton s'active dans 10 secondes").apply { gravity = Gravity.CENTER; setTextColor(FG4) })
         body.addView(spacer(14))
 
         val signBtn = cta("Signer ce document", PURPLE) { showScreen(Screen.SIGN) }
         signBtn.alpha = 0.4f; signBtn.isEnabled = false
         body.addView(signBtn)
 
-        // Countdown — enable button after 10s (demo)
+        // Countdown — enable button after 10s
         object : CountDownTimer(10000, 1000) {
             var elapsed = 0
             override fun onTick(ms: Long) { elapsed++; timerElapsed.text = "0:%02d".format(elapsed); signBtn.alpha = 0.4f + (elapsed / 10f) * 0.6f }
@@ -277,10 +389,41 @@ class MainActivity : FragmentActivity() {
         body.addView(sub("Cette empreinte sera fusionnée de façon irréversible avec le document et vos identifiants matériels."))
         body.addView(spacer(14))
 
+        val status = sub(""); status.gravity = Gravity.CENTER
+        body.addView(status)
+
         body.addView(bioZoneFull(PURPLE_I, purpleBorderIntense(), PURPLE, "Maintenir l'empreinte", true) {
+            status.text = "Authentification…"; status.setTextColor(FG3)
             BiometricHelper.authenticate(this, "Signature définitive", "Maintenez votre empreinte",
-                onSuccess = { showSuccess() },
-                onError   = { msg -> Toast.makeText(this, "Erreur : $msg", Toast.LENGTH_SHORT).show() })
+                onSuccess = { bio ->
+                    status.text = "Signature en cours…"; status.setTextColor(FG3)
+                    try {
+                        val pdf = decryptedPdfBytes ?: throw Exception("PDF non déchiffré")
+                        val skB64 = prefs().getString("signing_sk", "") ?: ""
+                        val sk = android.util.Base64.decode(skB64, android.util.Base64.DEFAULT)
+                        val markersJson = prefs().getString("markers", "{}") ?: "{}"
+                        val aid = android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: ""
+                        val deviceIds = (aid + Build.FINGERPRINT).toByteArray()
+                        val tau = MonotonicCounter.next(this)
+                        val senderPk = if (pendingSenderPk.isNotEmpty()) pendingSenderPk else prefs().getString("signing_pk", "") ?: ""
+
+                        val attJson = AuthentixCore.signDocument(
+                            sk, pdf, bio, deviceIds, tau,
+                            markersJson, pendingDocRef, senderPk
+                        )
+
+                        if (attJson.contains("\"error\"")) {
+                            status.text = "Erreur signature : $attJson"; status.setTextColor(RED)
+                        } else {
+                            lastAttestationJson = attJson
+                            status.text = "Signé ✓ (τ=$tau)"; status.setTextColor(GREEN)
+                            container.postDelayed({ showSuccess() }, 800)
+                        }
+                    } catch (e: Exception) {
+                        status.text = "Erreur : ${e.message}"; status.setTextColor(RED)
+                    }
+                },
+                onError = { msg -> status.text = "Erreur : $msg"; status.setTextColor(RED) })
         })
         body.addView(spacer(10))
 
@@ -291,7 +434,10 @@ class MainActivity : FragmentActivity() {
             setLineSpacing(0f, 1.5f)
             layoutParams = lp().apply { bottomMargin = dp(12) }
         })
-        body.addView(ctaOutline("Refuser de signer") { showScreen(Screen.HOME) })
+        body.addView(ctaOutline("Refuser de signer") {
+            decryptedPdfBytes = null; pendingPayloadJson = null
+            showScreen(Screen.HOME)
+        })
 
         root.addView(body)
         root.addView(dots(4, 5, PURPLE))
@@ -326,24 +472,45 @@ class MainActivity : FragmentActivity() {
             layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(16) }
         })
 
+        // Parse attestation for display
+        val tau = MonotonicCounter.peek(this)
+        var docHash = "—"
+        var sigmaShort = "—"
+        var certSize = "—"
+        val att = lastAttestationJson
+        if (att != null) {
+            try {
+                val j = org.json.JSONObject(att)
+                val docH = j.getJSONObject("document").getString("doc_hash")
+                docHash = "${docH.take(6)}…${docH.takeLast(4)}"
+                val sig = j.getJSONObject("signature_data").getString("sigma")
+                sigmaShort = "${sig.take(6)}…${sig.takeLast(4)}"
+                certSize = "${att.length} octets"
+            } catch (_: Exception) {}
+        }
+
         // Certificate card
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
             background = GradientDrawable().apply { setColor(PURPLE_L); setStroke(dp(1), purpleBorder()); cornerRadius = dp(4).toFloat() }
             layoutParams = lp().apply { bottomMargin = dp(14) }
         }
-        card.addView(certRow("Signataire", "Vous", PURPLE))
-        card.addView(certRow("Dispositif", "${Build.MANUFACTURER} ${Build.MODEL}", PURPLE))
-        card.addView(certRow("Horodatage τ", MonotonicCounter.peek(this).toString(), PURPLE))
-        card.addView(certRow("H(doc)", "3a8f…c91d", PURPLE))
-        card.addView(certRow("Taille cert.", "3 Ko · autonome", PURPLE))
+        card.addView(certRow("Signataire", "Vous · ${Build.MANUFACTURER} ${Build.MODEL}", PURPLE))
+        card.addView(certRow("Référence", pendingDocRef, PURPLE))
+        card.addView(certRow("Horodatage τ", tau.toString(), PURPLE))
+        card.addView(certRow("H(doc)", docHash, PURPLE))
+        card.addView(certRow("σ", sigmaShort, PURPLE))
+        card.addView(certRow("Taille cert.", certSize, PURPLE))
         body.addView(card)
 
-        body.addView(cta("Envoyer le certificat", PURPLE) { Toast.makeText(this, "Envoi attestation — à implémenter", Toast.LENGTH_SHORT).show() })
+        body.addView(cta("Envoyer le certificat par email", PURPLE) { shareAttestation() })
         body.addView(spacer(8))
-        body.addView(ctaOutline("Enregistrer localement") { Toast.makeText(this, "Enregistrement — à implémenter", Toast.LENGTH_SHORT).show() })
+        body.addView(ctaOutline("Enregistrer localement") { saveAttestationLocal() })
         body.addView(spacer(8))
-        body.addView(ctaOutline("Retour à l'accueil") { showScreen(Screen.HOME) })
+        body.addView(ctaOutline("Retour à l'accueil") {
+            decryptedPdfBytes = null; pendingPayloadJson = null; lastAttestationJson = null
+            showScreen(Screen.HOME)
+        })
 
         root.addView(body)
         root.addView(dots(5, 5, PURPLE))
@@ -589,6 +756,67 @@ class MainActivity : FragmentActivity() {
             startActivity(Intent.createChooser(intent, "Exporter .authentix-id"))
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur export : ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  HELPERS — PDF rendering, sharing, crypto display
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun sha3Hex(data: ByteArray): String {
+        // SHA3-256 available on API 28+; fallback to SHA-256 for display only
+        val algo = if (Build.VERSION.SDK_INT >= 28) "SHA3-256" else "SHA-256"
+        val md = java.security.MessageDigest.getInstance(algo)
+        return md.digest(data).joinToString("") { "%02x".format(it) }
+    }
+
+    private fun renderPdfFirstPage(pdfBytes: ByteArray): android.graphics.Bitmap? {
+        if (Build.VERSION.SDK_INT < 21) return null
+        return try {
+            val tmpFile = java.io.File(cacheDir, "tmp_preview.pdf")
+            tmpFile.writeBytes(pdfBytes)
+            val fd = android.os.ParcelFileDescriptor.open(tmpFile, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+            val renderer = android.graphics.pdf.PdfRenderer(fd)
+            if (renderer.pageCount == 0) { renderer.close(); fd.close(); return null }
+            val page = renderer.openPage(0)
+            val scale = 2
+            val bmp = android.graphics.Bitmap.createBitmap(page.width * scale, page.height * scale, android.graphics.Bitmap.Config.ARGB_8888)
+            bmp.eraseColor(Color.WHITE)
+            page.render(bmp, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            page.close(); renderer.close(); fd.close()
+            tmpFile.delete()
+            bmp
+        } catch (_: Exception) { null }
+    }
+
+    private fun shareAttestation() {
+        val att = lastAttestationJson ?: return
+        try {
+            val file = java.io.File(cacheDir, "${pendingDocRef}.attestation.json")
+            file.writeText(att)
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/json"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "AUTHENTIX SIGN — Attestation $pendingDocRef")
+                putExtra(Intent.EXTRA_TEXT, "Attestation de signature Authentix Sign\nRéférence : $pendingDocRef\nSigné sur ${Build.MANUFACTURER} ${Build.MODEL}")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Envoyer l'attestation"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur envoi : ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun saveAttestationLocal() {
+        val att = lastAttestationJson ?: return
+        try {
+            val dir = getExternalFilesDir(null) ?: filesDir
+            val file = java.io.File(dir, "${pendingDocRef}.attestation.json")
+            file.writeText(att)
+            Toast.makeText(this, "Enregistré : ${file.name}", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
