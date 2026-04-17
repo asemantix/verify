@@ -102,6 +102,42 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private val scanQrLauncher = registerForActivityResult(
+        com.journeyapps.barcodescanner.ScanContract()
+    ) { result ->
+        val contents = result.contents ?: return@registerForActivityResult
+        try {
+            val kitJson = contents
+            val valid = AuthentixCore.verifyKit(kitJson)
+            if (valid == "true") {
+                val kit = org.json.JSONObject(kitJson)
+                val owner = kit.getJSONObject("owner")
+                val name = owner.getString("name")
+                val markers = owner.getJSONObject("markers")
+                val device = "${markers.getString("brand")} ${markers.getString("model")}"
+                val idShort = markers.getString("id_short")
+                saveContact(name, owner.getString("signing_pk"), owner.getString("encryption_pk"), markers.toString(), device, idShort)
+                Toast.makeText(this, "✅ Identité vérifiée — $name ($device)", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, "❌ Clé Sésame non vérifiée — QR corrompu ou falsifié", Toast.LENGTH_LONG).show()
+            }
+            showScreen(Screen.CONTACTS)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur QR : ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun launchQrScanner() {
+        val options = com.journeyapps.barcodescanner.ScanOptions().apply {
+            setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
+            setPrompt("Scannez le QR d'identité Sésame")
+            setCameraId(0)
+            setBeepEnabled(false)
+            setOrientationLocked(false)
+        }
+        scanQrLauncher.launch(options)
+    }
+
     // ── Contact storage ─────────────────────────────────────────────────
     private fun saveContact(name: String, signingPk: String, encryptionPk: String, markersJson: String, device: String, idShort: String) {
         val contacts = loadContacts()
@@ -311,7 +347,7 @@ class MainActivity : FragmentActivity() {
         body.addView(spacer(14))
 
         body.addView(cta("Ouvrir l'appareil photo", PURPLE) {
-            Toast.makeText(this, "Caméra QR — à implémenter", Toast.LENGTH_SHORT).show()
+            launchQrScanner()
         })
         body.addView(spacer(8))
         body.addView(ctaOutline("Envoyer un document") { showScreen(Screen.SEND) })
@@ -796,7 +832,7 @@ class MainActivity : FragmentActivity() {
         body.addView(spacer(10))
 
         body.addView(cta("Scanner un QR code", PURPLE) {
-            Toast.makeText(this, "Scanner QR — à implémenter", Toast.LENGTH_SHORT).show()
+            launchQrScanner()
         })
         body.addView(spacer(8))
         body.addView(ctaOutline("Ouvrir un .sesame-id") {
