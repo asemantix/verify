@@ -31,6 +31,13 @@ class MainActivity : FragmentActivity() {
     private var onQrFullscreen = false
     private var onOnboarding = false
     private var onboardingPager: androidx.viewpager2.widget.ViewPager2? = null
+    private var onManifesto = false
+    private var manifestoFromMyId = false
+    private var manifestoPager: androidx.viewpager2.widget.ViewPager2? = null
+    private var manifestoPage1Lines: List<View> = emptyList()
+    private var manifestoPage2Lines: List<View> = emptyList()
+    private var manifestoPage1Animated = false
+    private var manifestoPage2Animated = false
     private enum class SetupReason { FIRST_TIME, INVALIDATED, LEGACY_RESET, USER_RESET }
     private var setupReason: SetupReason = SetupReason.FIRST_TIME
 
@@ -225,6 +232,7 @@ class MainActivity : FragmentActivity() {
                 isSetupDone = prefs().contains("signing_pk")
                 when {
                     !isSetupDone -> showSetupScreen()
+                    !prefs().getBoolean("manifeste_shown", false) -> showManifesto(fromMyId = false)
                     !prefs().getBoolean("onboarding_done", false) -> showOnboardingScreen()
                     else -> showScreen(Screen.HOME)
                 }
@@ -506,6 +514,7 @@ class MainActivity : FragmentActivity() {
                 container.postDelayed({
                     when {
                         reasonForSuccess != SetupReason.FIRST_TIME -> showPostSetupSuccess()
+                        !prefs().getBoolean("manifeste_shown", false) -> showManifesto(fromMyId = false)
                         !prefs().getBoolean("onboarding_done", false) -> showOnboardingScreen()
                         else -> showScreen(Screen.HOME)
                     }
@@ -551,6 +560,323 @@ class MainActivity : FragmentActivity() {
     // ════════════════════════════════════════════════════════════════════
     //  ÉCRAN TRANSPORT — affiché à chaque Envoyer et chaque Recevoir
     // ════════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════════════════════════════
+    //  MANIFESTO — 2-page swipeable, framed, staggered text fade-in
+    //  Shown once before onboarding (flag manifeste_shown) and on-demand
+    //  from Mon identité via the "Notre engagement" link.
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun showManifesto(fromMyId: Boolean) {
+        onManifesto = true
+        onOnboarding = false
+        onQrFullscreen = false
+        manifestoFromMyId = fromMyId
+        manifestoPage1Animated = false
+        manifestoPage2Animated = false
+        container.removeAllViews()
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(BG)
+            layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+        }
+
+        val pager = androidx.viewpager2.widget.ViewPager2(this).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
+            adapter = ManifestoAdapter()
+        }
+        manifestoPager = pager
+        root.addView(pager)
+
+        val dotsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(10), dp(24), dp(24))
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        }
+        val dots = Array(2) {
+            View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(8), dp(8)).apply { setMargins(dp(6), 0, dp(6), 0) }
+            }
+        }
+        fun paintDots(active: Int) {
+            for (i in dots.indices) {
+                dots[i].background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(PURPLE) }
+                dots[i].alpha = if (i == active) 1f else 0.3f
+            }
+        }
+        dots.forEach { dotsRow.addView(it) }
+        paintDots(0)
+        root.addView(dotsRow)
+
+        pager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                paintDots(position)
+                when (position) {
+                    0 -> if (!manifestoPage1Animated) {
+                        manifestoPage1Animated = true
+                        animateManifestoLines(manifestoPage1Lines)
+                    }
+                    1 -> if (!manifestoPage2Animated) {
+                        manifestoPage2Animated = true
+                        animateManifestoLines(manifestoPage2Lines)
+                    }
+                }
+            }
+        })
+
+        container.addView(root)
+        // Kick off page-1 animation after layout settles.
+        pager.post {
+            if (!manifestoPage1Animated) {
+                manifestoPage1Animated = true
+                animateManifestoLines(manifestoPage1Lines)
+            }
+        }
+    }
+
+    private fun animateManifestoLines(lines: List<View>) {
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val stagger = 280L
+        val duration = 420L
+        lines.forEachIndexed { i, v ->
+            handler.postDelayed({
+                v.animate().alpha(1f).setDuration(duration).start()
+            }, stagger * i)
+        }
+    }
+
+    private fun completeManifesto() {
+        prefs().edit().putBoolean("manifeste_shown", true).apply()
+        val fromMyId = manifestoFromMyId
+        onManifesto = false
+        manifestoPager = null
+        manifestoPage1Lines = emptyList()
+        manifestoPage2Lines = emptyList()
+        if (fromMyId) {
+            showScreen(Screen.MY_ID)
+        } else when {
+            !prefs().getBoolean("onboarding_done", false) -> showOnboardingScreen()
+            else -> showScreen(Screen.HOME)
+        }
+    }
+
+    private inner class ManifestoAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<ManifestoAdapter.VH>() {
+        inner class VH(v: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(v)
+        override fun getItemCount() = 2
+        override fun getItemViewType(position: Int) = position
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
+            val v = buildManifestoPage(viewType).apply {
+                layoutParams = androidx.recyclerview.widget.RecyclerView.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            }
+            return VH(v)
+        }
+        override fun onBindViewHolder(holder: VH, position: Int) {}
+    }
+
+    /** Build one manifesto page with the framed-card decor + staggered text lines. */
+    private fun buildManifestoPage(index: Int): View {
+        val isDark = (index == 0)
+        val cardColor = if (isDark) Color.parseColor("#1a1a18") else Color.parseColor("#f5f4f0")
+        val textColor = if (isDark) Color.parseColor("#f5f4f0") else Color.parseColor("#1a1a18")
+
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(BG)
+            layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            isVerticalFadingEdgeEnabled = false
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        }
+
+        val frame = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(32), dp(32), dp(32), dp(32))
+            background = GradientDrawable().apply {
+                setColor(cardColor)
+                setStroke(dp(1), Color.argb(77, 0x66, 0x55, 0xc0))   // PURPLE 30%
+                cornerRadius = dp(16).toFloat()
+            }
+            elevation = dp(4).toFloat()
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        }
+
+        // Icon + separator (decor — always visible)
+        frame.addView(android.widget.ImageView(this).apply {
+            setImageResource(R.mipmap.ic_launcher)
+            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(14)
+            }
+        })
+        frame.addView(View(this).apply {
+            setBackgroundColor(Color.argb(51, 0x66, 0x55, 0xc0))  // PURPLE 20%
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 1).apply { bottomMargin = dp(18) }
+        })
+
+        val lines = mutableListOf<View>()
+        if (index == 0) buildManifestoPage1Content(frame, lines, textColor)
+        else buildManifestoPage2Content(frame, lines)
+
+        // All lines start hidden; animated by onPageSelected.
+        lines.forEach { it.alpha = 0f }
+        if (index == 0) manifestoPage1Lines = lines else manifestoPage2Lines = lines
+
+        container.addView(frame)
+        scroll.addView(container)
+        return scroll
+    }
+
+    private fun buildManifestoPage1Content(frame: LinearLayout, lines: MutableList<View>, textColor: Int) {
+        // Title — Cormorant italic 24sp #aaa89e centered
+        val title = TextView(this).apply {
+            text = "Contrairement aux autres acteurs du marché —"
+            typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
+            setTextColor(Color.parseColor("#aaa89e"))
+            gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.25f)
+            layoutParams = lp().apply { bottomMargin = dp(14) }
+        }
+        frame.addView(title); lines.add(title)
+
+        // Divider under the title
+        frame.addView(View(this).apply {
+            setBackgroundColor(Color.argb(51, 0x66, 0x55, 0xc0))
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 1).apply { bottomMargin = dp(18) }
+        })
+
+        val problemLines = listOf(
+            "une adresse email.",
+            "Un lien cliquable.",
+            "Des documents qui voyagent en clair.",
+            "Stockés sur des serveurs",
+            "que vous ne contrôlez pas.",
+            "Des signatures qui ne vous appartiennent plus.",
+            "Piratables. Récoltables.",
+        )
+        for (text in problemLines) {
+            val tv = TextView(this).apply {
+                this.text = text
+                typeface = MONO
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                setTextColor(textColor)
+                gravity = Gravity.CENTER
+                setLineSpacing(0f, 1.45f)
+                layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(4) }
+            }
+            frame.addView(tv); lines.add(tv)
+        }
+
+        frame.addView(View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(18))
+        })
+
+        val punch = TextView(this).apply {
+            text = "Harvest Now, Decrypt Later."
+            typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+            setTextColor(Color.parseColor("#c05038"))
+            gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.15f)
+            layoutParams = lp().apply { topMargin = dp(12) }
+        }
+        frame.addView(punch); lines.add(punch)
+    }
+
+    private fun buildManifestoPage2Content(frame: LinearLayout, lines: MutableList<View>) {
+        val mono14 = Color.parseColor("#1a1a18")
+
+        val solutionLines = listOf(
+            "Sésame est un lieu d'échanges",
+            "et de signatures de documents",
+            "entre parties identifiées.",
+            "",
+            "Sans tiers de confiance.",
+            "Sans serveur.",
+            "",
+            "L'expéditeur et le signataire",
+            "sont irréversiblement liés au document.",
+            "Mathématiquement authentifiés.",
+            "",
+            "Chaque signature produit un certificat.",
+            "Valeur juridique probatoire.",
+            "Conforme eIDAS 2.",
+            "La preuve est là. Pour toujours.",
+            "",
+            "Vos documents ne transitent nulle part.",
+            "Ils n'existent sur aucun serveur.",
+            "On ne peut pas récolter",
+            "ce qui n'existe pas.",
+        )
+        for (text in solutionLines) {
+            val tv = TextView(this).apply {
+                this.text = text
+                typeface = MONO
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextColor(mono14)
+                gravity = Gravity.CENTER
+                setLineSpacing(0f, 1.5f)
+                layoutParams = lp().apply { topMargin = dp(2); bottomMargin = dp(2) }
+            }
+            frame.addView(tv); lines.add(tv)
+        }
+
+        frame.addView(View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(14))
+        })
+
+        val punch = TextView(this).apply {
+            text = "Harvest Now, Decrypt Never."
+            typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+            setTextColor(PURPLE)
+            gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.15f)
+            layoutParams = lp().apply { topMargin = dp(10); bottomMargin = dp(14) }
+        }
+        frame.addView(punch); lines.add(punch)
+
+        val fineDetails = listOf(
+            "Trois inventions brevetées.",
+            "",
+            "Asémantique.",
+            "Fusion locale.",
+            "Dérivation cryptographique physique.",
+            "",
+            "Vos documents sont à vous.",
+            "Pour toujours.",
+        )
+        for (text in fineDetails) {
+            val tv = TextView(this).apply {
+                this.text = text
+                typeface = MONO
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(Color.parseColor("#6a6860"))
+                gravity = Gravity.CENTER
+                setLineSpacing(0f, 1.45f)
+                layoutParams = lp().apply { topMargin = dp(1); bottomMargin = dp(1) }
+            }
+            frame.addView(tv); lines.add(tv)
+        }
+
+        val enterBtn = TextView(this).apply {
+            text = "[ Entrer ]"
+            typeface = SERIF_B
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            setTextColor(PURPLE)
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            isClickable = true; isFocusable = true
+            setOnClickListener { completeManifesto() }
+            layoutParams = lp().apply { topMargin = dp(20) }
+        }
+        frame.addView(enterBtn); lines.add(enterBtn)
+    }
 
     // ════════════════════════════════════════════════════════════════════
     //  ONBOARDING — 3-page swipeable ViewPager (shown once after setup)
@@ -771,6 +1097,10 @@ class MainActivity : FragmentActivity() {
         onQrFullscreen = false
         onOnboarding = false
         onboardingPager = null
+        onManifesto = false
+        manifestoPager = null
+        manifestoPage1Lines = emptyList()
+        manifestoPage2Lines = emptyList()
         container.removeAllViews()
         // HOME is a fixed-layout dashboard (no scroll) so bottom settings can anchor.
         if (s == Screen.HOME) {
@@ -1633,6 +1963,20 @@ class MainActivity : FragmentActivity() {
         infoCard.addView(certRow("Statut", "✅ Active", GREEN))
         body.addView(infoCard)
 
+        // Discreet link to the SÉSAME manifesto (brand promise), sits between the
+        // info card and the danger zone so it stays low-visibility but discoverable.
+        body.addView(TextView(this).apply {
+            text = "[ Notre engagement ]"
+            typeface = MONO
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(Color.parseColor("#aaa89e"))
+            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(6), dp(10), dp(14))
+            isClickable = true; isFocusable = true
+            setOnClickListener { showManifesto(fromMyId = true) }
+            layoutParams = lp()
+        })
+
         // ── SECTION 5 — Zone danger ──────────────────────────────────────
         body.addView(View(this).apply {
             setBackgroundColor(BORDER)
@@ -2140,6 +2484,16 @@ class MainActivity : FragmentActivity() {
     override fun onBackPressed() {
         when {
             onOnboarding -> Unit  // hardware back disabled during onboarding
+            onManifesto -> {
+                // From Mon identité → back returns to MY_ID. First-launch → back is a no-op
+                // (user must tap [ Entrer ] to finish the manifesto).
+                if (manifestoFromMyId) {
+                    prefs().edit().putBoolean("manifeste_shown", true).apply()
+                    onManifesto = false
+                    manifestoPager = null
+                    showScreen(Screen.MY_ID)
+                }
+            }
             onQrFullscreen -> {
                 window?.attributes = window?.attributes?.apply { screenBrightness = -1f }
                 showScreen(Screen.MY_ID)
