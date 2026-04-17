@@ -678,7 +678,7 @@ class MainActivity : FragmentActivity() {
     /** Build one manifesto page with the framed-card decor + staggered text lines. */
     private fun buildManifestoPage(index: Int): View {
         val isDark = (index == 0)
-        val cardColor = if (isDark) Color.parseColor("#1a1a18") else Color.parseColor("#f5f4f0")
+        val cardColor = if (isDark) Color.parseColor("#2d2a3e") else Color.parseColor("#f5f4f0")
         val textColor = if (isDark) Color.parseColor("#f5f4f0") else Color.parseColor("#1a1a18")
 
         val scroll = ScrollView(this).apply {
@@ -792,6 +792,27 @@ class MainActivity : FragmentActivity() {
             layoutParams = lp().apply { topMargin = dp(12) }
         }
         frame.addView(punch); lines.add(punch)
+
+        // Subtle swipe-hint gradient at the very bottom of the dark card — transparent on
+        // the left, a faint purple on the right, suggesting "swipe right for more".
+        frame.addView(View(this).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Color.TRANSPARENT, Color.argb(77, 0x66, 0x55, 0xc0)),
+            )
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(3)).apply { topMargin = dp(22) }
+        })
+        // Small mono cue under the gradient, also subtle.
+        val swipeCue = TextView(this).apply {
+            text = "glissez →"
+            typeface = MONO
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            setTextColor(Color.argb(160, 0x66, 0x55, 0xc0))
+            gravity = Gravity.END
+            setPadding(0, dp(4), dp(2), 0)
+            layoutParams = lp()
+        }
+        frame.addView(swipeCue); lines.add(swipeCue)
     }
 
     private fun buildManifestoPage2Content(frame: LinearLayout, lines: MutableList<View>) {
@@ -907,6 +928,9 @@ class MainActivity : FragmentActivity() {
         val pager = androidx.viewpager2.widget.ViewPager2(this).apply {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
             adapter = OnboardingAdapter()
+            orientation = androidx.viewpager2.widget.ViewPager2.ORIENTATION_HORIZONTAL
+            isUserInputEnabled = true   // horizontal swipes between pages are the only navigation
+            offscreenPageLimit = 1
         }
         onboardingPager = pager
         root.addView(pager)
@@ -2049,11 +2073,15 @@ class MainActivity : FragmentActivity() {
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 this, "$packageName.fileprovider", file,
             )
+            android.util.Log.d("SesameShare", "attaching uri=$uri (size=${file.length()} bytes)")
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/octet-stream"
+                // "*/*" is the broadest type email apps accept when they see a file URI.
+                // "application/octet-stream" caused some clients to ignore the attachment.
+                type = "*/*"
                 putExtra(Intent.EXTRA_STREAM, uri)
                 putExtra(Intent.EXTRA_SUBJECT, "Mon identité SÉSAME — $device")
                 putExtra(Intent.EXTRA_TEXT, body)
+                putExtra(Intent.EXTRA_EMAIL, arrayOf<String>())  // prompt user to fill recipients
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 // Some email apps (Outlook, Samsung Email) look at clipData for attachments.
                 clipData = android.content.ClipData.newRawUri("mon-identite.sesame-id", uri)
