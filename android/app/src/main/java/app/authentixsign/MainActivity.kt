@@ -76,6 +76,7 @@ class MainActivity : FragmentActivity() {
     private var selectedPdfBytes: ByteArray? = null
     private var selectedPdfName: String = ""
     private var selectedRecipient: org.json.JSONObject? = null
+    private var pendingSendTransport: String? = null   // "secret" | "mail", set by Transport screen, reset on Home return
 
     // ── Activity result launchers ───────────────────────────────────────
     private val importKitLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -214,7 +215,7 @@ class MainActivity : FragmentActivity() {
             }
             else -> {
                 isSetupDone = prefs().contains("signing_pk")
-                if (!isSetupDone) showSetupScreen() else resumeAfterKeysReady()
+                if (!isSetupDone) showSetupScreen() else showScreen(Screen.HOME)
             }
         }
         handleIntent(intent)
@@ -315,6 +316,8 @@ class MainActivity : FragmentActivity() {
             remove("master_seed"); remove("bio_hash")       // legacy artifacts
             remove("signing_sk_blob"); remove("encryption_sk_blob")
             remove("signed_kit_json")
+            remove("id_created_at")
+            remove("transport_mode"); remove("onboarding_done")  // legacy: transport now per-action
         }.apply()
     }
 
@@ -486,7 +489,7 @@ class MainActivity : FragmentActivity() {
                 val reasonForSuccess = setupReason
                 setupReason = SetupReason.FIRST_TIME
                 container.postDelayed({
-                    if (reasonForSuccess == SetupReason.FIRST_TIME) resumeAfterKeysReady()
+                    if (reasonForSuccess == SetupReason.FIRST_TIME) showScreen(Screen.HOME)
                     else showPostSetupSuccess()
                 }, 900)
             },
@@ -521,109 +524,100 @@ class MainActivity : FragmentActivity() {
 
         body.addView(cta("Notifier tous mes contacts", GOLD) { notifyAllContacts() })
         body.addView(spacer(8))
-        body.addView(ctaOutline("Plus tard") { resumeAfterKeysReady() })
+        body.addView(ctaOutline("Plus tard") { showScreen(Screen.HOME) })
 
         root.addView(body)
         container.addView(scroll(root))
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  ÉCRAN 0bis / 0ter — TRANSPORT + ONBOARDING
+    //  ÉCRAN TRANSPORT — affiché à chaque Envoyer et chaque Recevoir
     // ════════════════════════════════════════════════════════════════════
 
-    /** Called after any successful key creation. Routes through 0bis (if no transport
-     *  chosen yet) then 0ter (if onboarding not done) then lands on HOME. */
-    private fun resumeAfterKeysReady() {
-        val transport = prefs().getString("transport_mode", null)
-        val onboardingDone = prefs().getBoolean("onboarding_done", false)
-        when {
-            transport == null -> showTransportScreen()
-            !onboardingDone -> showOnboardingScreen()
-            else -> showScreen(Screen.HOME)
-        }
-    }
+    private enum class TransportAction { SEND, RECEIVE }
 
-    private fun showTransportScreen() {
+    /** Picks "Boîte secrète" vs "Boîte mail" for one flow. No persistence —
+     *  the choice lives only for the duration of the current Send or Receive action. */
+    private fun showTransportScreen(action: TransportAction) {
         container.removeAllViews()
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Sésame", PURPLE, stepLabel("2 / 3")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Transport")))
 
         val body = bodyPad()
-        body.addView(spacer(16))
-        body.addView(eyebrow("Transport"))
-        body.addView(titleSerif("Comment voulez-vous\nrecevoir vos documents ?", PURPLE))
-        body.addView(sub("Modifiable dans Réglages à tout moment."))
+        body.addView(backLink { showScreen(Screen.HOME) })
+        body.addView(titleSerif(
+            when (action) {
+                TransportAction.SEND -> "Comment voulez-vous\nenvoyer ce document ?"
+                TransportAction.RECEIVE -> "Comment voulez-vous\nrecevoir ce document ?"
+            },
+            PURPLE,
+        ))
+        // NO explanatory text between title and cards — each card speaks for itself.
         body.addView(spacer(14))
 
         var selected: String? = null
         lateinit var continueBtn: Button
-        val secretCard = transportCard(
-            icon = "🔒",
-            title = "BOÎTE SECRÈTE",
-            body = "Un SMS neutre vous prévient à l'arrivée. L'expéditeur reste anonyme. Aucune métadonnée visible.\n\nPour les particuliers et professions libérales.",
-        ) {
-            selected = "secret"
-            continueBtn.alpha = 1f; continueBtn.isEnabled = true
+        val secret = transportCard("🔒", "Boîte secrète", "Idéal pour les équipes et entreprises")
+        val mail = transportCard("📧", "Boîte mail", "Idéal pour les particuliers")
+        fun refresh() {
+            secret.second(selected == "secret")
+            mail.second(selected == "mail")
+            continueBtn.alpha = if (selected != null) 1f else 0.4f
+            continueBtn.isEnabled = selected != null
         }
-        val mailCard = transportCard(
-            icon = "📧",
-            title = "BOÎTE MAIL",
-            body = "Le document arrive en pièce jointe email. Ouverture en un clic.\n\nPour les équipes et les entreprises.",
-        ) {
-            selected = "mail"
-            continueBtn.alpha = 1f; continueBtn.isEnabled = true
-        }
-        // Manage visual selection: refresh borders when tapping
-        val rerender = {
-            secretCard.second(selected == "secret")
-            mailCard.second(selected == "mail")
-        }
-        val secretWrap = secretCard.first.apply { setOnClickListener { selected = "secret"; continueBtn.alpha = 1f; continueBtn.isEnabled = true; rerender() } }
-        val mailWrap = mailCard.first.apply { setOnClickListener { selected = "mail"; continueBtn.alpha = 1f; continueBtn.isEnabled = true; rerender() } }
-        body.addView(secretWrap); body.addView(spacer(10))
-        body.addView(mailWrap); body.addView(spacer(10))
-        body.addView(monoNote("Dans les deux cas, votre document est inviolable. Seul le facteur change."))
-        body.addView(spacer(14))
+        secret.first.setOnClickListener { selected = "secret"; refresh() }
+        mail.first.setOnClickListener { selected = "mail"; refresh() }
+        body.addView(secret.first); body.addView(spacer(10))
+        body.addView(mail.first); body.addView(spacer(18))
 
-        continueBtn = cta("Continuer", PURPLE) {
-            selected?.let {
-                prefs().edit().putString("transport_mode", it).apply()
-                resumeAfterKeysReady()
+        continueBtn = ctaTall("Continuer", PURPLE) {
+            val pick = selected ?: return@ctaTall
+            when (action) {
+                TransportAction.SEND -> {
+                    pendingSendTransport = pick
+                    showScreen(Screen.SEND)
+                }
+                TransportAction.RECEIVE -> when (pick) {
+                    "mail" -> receiveSesameLauncher.launch(arrayOf("*/*"))
+                    "secret" -> {
+                        Toast.makeText(this, "Boîte secrète — à venir", Toast.LENGTH_LONG).show()
+                        showScreen(Screen.HOME)
+                    }
+                }
             }
         }
-        continueBtn.alpha = 0.4f; continueBtn.isEnabled = false
+        refresh()
         body.addView(continueBtn)
 
         root.addView(body)
         container.addView(scroll(root))
     }
 
-    /** Returns (the card view, a refresh callback that takes isSelected). */
-    private fun transportCard(icon: String, title: String, body: String, onClick: () -> Unit): Pair<LinearLayout, (Boolean) -> Unit> {
+    /** Two-line selectable transport card: icon + title + subtitle.
+     *  Returns (card view, refresh callback taking isSelected). */
+    private fun transportCard(icon: String, title: String, subtitle: String): Pair<LinearLayout, (Boolean) -> Unit> {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(14), dp(14), dp(14))
-            layoutParams = lp().apply { bottomMargin = dp(6) }
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            layoutParams = lp()
             isClickable = true; isFocusable = true
-            setOnClickListener { onClick() }
         }
-        val header = TextView(this).apply {
+        card.addView(TextView(this).apply {
             text = "$icon   $title"
-            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(PURPLE); letterSpacing = 0.08f
-            layoutParams = lp().apply { bottomMargin = dp(6) }
-        }
-        val body2 = TextView(this).apply {
-            text = body
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f); setTextColor(FG2)
+            typeface = SERIF_B; setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f); setTextColor(PURPLE)
+            layoutParams = lp().apply { bottomMargin = dp(4) }
+        })
+        card.addView(TextView(this).apply {
+            text = subtitle
+            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG3)
             setLineSpacing(0f, 1.5f)
             layoutParams = lp()
-        }
-        card.addView(header); card.addView(body2)
-        val refresh = { selected: Boolean ->
+        })
+        val refresh = { isSelected: Boolean ->
             card.background = GradientDrawable().apply {
-                setColor(if (selected) PURPLE_L else Color.parseColor("#fcfbf8"))
-                setStroke(dp(if (selected) 2 else 1), if (selected) PURPLE else BORDER)
+                setColor(if (isSelected) PURPLE_L else Color.parseColor("#fcfbf8"))
+                setStroke(dp(if (isSelected) 2 else 1), if (isSelected) PURPLE else BORDER)
                 cornerRadius = dp(6).toFloat()
             }
         }
@@ -631,28 +625,14 @@ class MainActivity : FragmentActivity() {
         return card to refresh
     }
 
-    private fun showOnboardingScreen() {
-        container.removeAllViews()
-        val root = screenRoot()
-        root.addView(accentBar(PURPLE))
-        root.addView(topBar("Sésame", PURPLE, stepLabel("3 / 3")))
-
-        val body = bodyPad()
-        body.addView(spacer(16))
-        body.addView(eyebrow("Comment ça marche"))
-        body.addView(titleSerif("Vos premiers pas", PURPLE))
-        body.addView(sub("SÉSAME vous permet d'envoyer et de recevoir des documents signés de manière sécurisée. Tout se passe sur votre téléphone. Aucun serveur."))
-        body.addView(spacer(10))
-        body.addView(guideText(
-            "Pour commencer :\n① Partagez votre identité avec les personnes qui veulent vous envoyer des documents.\n② Ajoutez à vos contacts les personnes à qui vous voulez envoyer des documents.\n\nLes documents reçus arrivent par email ou SMS. Cliquez sur la pièce jointe .sesame et l'app s'ouvre automatiquement."
-        ))
-        body.addView(spacer(18))
-        body.addView(cta("Commencer", PURPLE) {
-            prefs().edit().putBoolean("onboarding_done", true).apply()
-            showScreen(Screen.HOME)
-        })
-        root.addView(body)
-        container.addView(scroll(root))
+    /** Full-width 52dp-tall purple primary CTA. Used for Transport Continue. */
+    private fun ctaTall(label: String, bgColor: Int, onClick: () -> Unit) = Button(this).apply {
+        text = label.uppercase(); typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(WHITE)
+        letterSpacing = 0.1f; isAllCaps = false; stateListAnimator = null; elevation = 0f
+        setPadding(dp(12), 0, dp(12), 0)
+        setBackgroundColor(bgColor)
+        layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(52))
+        setOnClickListener { onClick() }
     }
 
     // ── User-initiated identity reset (called from Mon identité danger zone) ──
@@ -752,35 +732,37 @@ class MainActivity : FragmentActivity() {
             layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         }
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Sésame", PURPLE, badge("v1.0", PURPLE_L, PURPLE)))
+        // Discrete Mon identité icon in the top-right corner.
+        root.addView(topBar("Sésame", PURPLE, iconButton("🆔") { showScreen(Screen.MY_ID) }))
 
         val body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(24), dp(24), dp(24), dp(24))
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
         }
 
-        // ── Zone principale : 3 boutons d'action ────────────────────────
-        body.addView(cta("Envoyer", PURPLE) { showScreen(Screen.SEND) })
-        body.addView(spacer(12))
-        body.addView(cta("Recevoir", PURPLE) {
-            receiveSesameLauncher.launch(arrayOf("*/*"))
+        // Two primary actions — nothing else on this screen.
+        body.addView(ctaTall("Envoyer", PURPLE) {
+            selectedPdfBytes = null; selectedPdfName = ""; selectedRecipient = null
+            showTransportScreen(TransportAction.SEND)
         })
-        body.addView(spacer(12))
-        body.addView(disabledCta("Co-signer", "À venir"))
-
-        // Flex spacer pushes settings zone to the bottom of the screen.
-        body.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
+        body.addView(spacer(14))
+        body.addView(ctaTall("Recevoir", PURPLE) {
+            showTransportScreen(TransportAction.RECEIVE)
         })
-
-        // ── Zone réglages ───────────────────────────────────────────────
-        body.addView(ctaOutline("Mes contacts") { showScreen(Screen.CONTACTS) })
-        body.addView(spacer(8))
-        body.addView(ctaOutline("Mon identité") { showScreen(Screen.MY_ID) })
 
         root.addView(body)
         return root
+    }
+
+    /** Small tappable icon rendered in the topBar right-slot. */
+    private fun iconButton(emoji: String, onClick: () -> Unit) = TextView(this).apply {
+        text = emoji
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        setPadding(dp(10), dp(6), dp(10), dp(6))
+        isClickable = true; isFocusable = true
+        setOnClickListener { onClick() }
     }
 
     /** Non-interactive CTA styled like `cta` but grayed with a trailing label. */
@@ -805,6 +787,7 @@ class MainActivity : FragmentActivity() {
         root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 1/3")))
 
         val body = bodyPad()
+        body.addView(backLink { pendingPayloadJson = null; decryptedPdfBytes = null; showScreen(Screen.HOME) })
         body.addView(eyebrow("Document reçu"))
         body.addView(titleSerif("Confirmez\nla réception", PURPLE))
         body.addView(sub("Un document chiffré vous a été envoyé. Seul votre appareil peut l'ouvrir."))
@@ -872,6 +855,7 @@ class MainActivity : FragmentActivity() {
         root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 2/3")))
 
         val body = bodyPad()
+        body.addView(backLink { decryptedPdfBytes = null; pendingPayloadJson = null; showScreen(Screen.HOME) })
         val pdf = decryptedPdfBytes
         val pageCount = pdf?.let { countPdfPages(it) } ?: 1
         val timerSeconds = when {
@@ -1009,6 +993,7 @@ class MainActivity : FragmentActivity() {
         root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 3/3")))
 
         val body = bodyPad()
+        body.addView(backLink { showScreen(Screen.READ) })
         body.addView(eyebrow("Signature définitive"))
         body.addView(titleSerif("Signez\nmaintenant", PURPLE))
         body.addView(sub("Dernière étape. Votre empreinte scellera définitivement le document."))
@@ -1714,8 +1699,8 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun titleSerif(text: String, color: Int) = TextView(this).apply {
-        this.text = text; typeface = SERIF_B; setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f); setTextColor(color)
-        setLineSpacing(0f, 1.1f); layoutParams = lp().apply { bottomMargin = dp(10) }
+        this.text = text; typeface = SERIF_B; setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f); setTextColor(color)
+        setLineSpacing(0f, 1.05f); layoutParams = lp().apply { bottomMargin = dp(12) }
     }
 
     private fun sub(text: String) = TextView(this).apply {
