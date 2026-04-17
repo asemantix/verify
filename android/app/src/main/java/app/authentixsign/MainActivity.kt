@@ -558,8 +558,16 @@ class MainActivity : FragmentActivity() {
 
         var selected: String? = null
         lateinit var continueBtn: Button
-        val secret = transportCard("🔒", "Boîte secrète", "Idéal pour les équipes et entreprises")
-        val mail = transportCard("📧", "Boîte mail", "Idéal pour les particuliers")
+        val secret = transportCard(
+            title = "Boîte secrète 🔒",
+            tagline = "Idéal pour les équipes et entreprises",
+            description = "Votre document reste illisible pour tous sauf votre destinataire. Un SMS neutre l'avertit.",
+        )
+        val mail = transportCard(
+            title = "Boîte mail 📧",
+            tagline = "Idéal pour les particuliers",
+            description = "Votre document reste illisible pour tous sauf votre destinataire. Même dans sa boîte mail, même sur un autre téléphone.",
+        )
         fun refresh() {
             secret.second(selected == "secret")
             mail.second(selected == "mail")
@@ -594,9 +602,9 @@ class MainActivity : FragmentActivity() {
         container.addView(scroll(root))
     }
 
-    /** Two-line selectable transport card: icon + title + subtitle.
-     *  Returns (card view, refresh callback taking isSelected). */
-    private fun transportCard(icon: String, title: String, subtitle: String): Pair<LinearLayout, (Boolean) -> Unit> {
+    /** Selectable transport card: title (SERIF bold, icon inline), tagline (mono micro-label),
+     *  description (serif body). Returns (card view, refresh callback taking isSelected). */
+    private fun transportCard(title: String, tagline: String, description: String): Pair<LinearLayout, (Boolean) -> Unit> {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(16), dp(16), dp(16))
@@ -604,13 +612,18 @@ class MainActivity : FragmentActivity() {
             isClickable = true; isFocusable = true
         }
         card.addView(TextView(this).apply {
-            text = "$icon   $title"
-            typeface = SERIF_B; setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f); setTextColor(PURPLE)
+            text = title
+            typeface = SERIF_B; setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f); setTextColor(PURPLE)
             layoutParams = lp().apply { bottomMargin = dp(4) }
         })
         card.addView(TextView(this).apply {
-            text = subtitle
-            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG3)
+            text = tagline
+            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f); setTextColor(PURPLE); letterSpacing = 0.04f
+            layoutParams = lp().apply { bottomMargin = dp(10) }
+        })
+        card.addView(TextView(this).apply {
+            text = description
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f); setTextColor(FG2)
             setLineSpacing(0f, 1.5f)
             layoutParams = lp()
         })
