@@ -7,8 +7,9 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-ed25519-dalek = { version = "2", features = ["hazmat"] }
-x25519-dalek = { version = "2", features = ["static_secrets"] }
+pqcrypto-dilithium = "0.5"
+pqcrypto-kyber = "0.8"
+pqcrypto-traits = "0.3"
 sha3 = "0.10"
 hkdf = "0.12"
 aes-gcm = "0.10"

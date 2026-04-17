@@ -20,7 +20,7 @@ pub struct SetupResult {
 
 #[derive(Serialize, Deserialize)]
 pub struct EncryptedPayload {
-    pub ephemeral_pk: String,
+    pub kem_ciphertext: String,
     pub pdf_encrypted: String,
     pub doc_hash: String,
 }
