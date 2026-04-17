@@ -97,7 +97,7 @@ class MainActivity : FragmentActivity() {
                 val device = "${markers.getString("brand")} ${markers.getString("model")}"
                 val idShort = markers.getString("id_short")
                 saveContact(name, owner.getString("signing_pk"), owner.getString("encryption_pk"), markers.toString(), device, idShort)
-                Toast.makeText(this, "✅ Contact ajouté : $name — $device", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "✅ Sésame ajouté : $name — $device", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(this, "❌ Clé Sésame non vérifiée — fichier corrompu ou falsifié", Toast.LENGTH_LONG).show()
             }
@@ -379,7 +379,7 @@ class MainActivity : FragmentActivity() {
                 putExtra(Intent.EXTRA_TEXT, "Mon identité Sésame a changé. Ouvrez ce fichier pour mettre à jour ma clé automatiquement.")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(intent, "Notifier mes contacts"))
+            startActivity(Intent.createChooser(intent, "Notifier mes Sésames"))
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -540,12 +540,12 @@ class MainActivity : FragmentActivity() {
         body.addView(spacer(16))
         body.addView(eyebrow("Identité prête"))
         body.addView(titleSerif("Votre nouvelle\nidentité est prête", GOLD))
-        body.addView(sub("Vos contacts doivent mettre à jour votre clé Sésame pour pouvoir vous envoyer des documents."))
+        body.addView(sub("Vos Sésames doivent mettre à jour votre clé Sésame pour pouvoir vous envoyer des documents."))
         body.addView(spacer(12))
-        body.addView(guideText("Le bouton ci-dessous ouvre votre application mail avec votre nouvelle clé en pièce jointe. Choisissez vos destinataires dans le carnet d'adresses de votre mail."))
+        body.addView(guideText("Le bouton ci-dessous ouvre votre application mail avec votre nouvelle clé en pièce jointe. Choisissez vos Sésames dans le carnet d'adresses de votre mail."))
         body.addView(spacer(14))
 
-        body.addView(cta("Notifier tous mes contacts", GOLD) { notifyAllContacts() })
+        body.addView(cta("Notifier tous mes Sésames", GOLD) { notifyAllContacts() })
         body.addView(spacer(8))
         body.addView(ctaOutline("Plus tard") { showScreen(Screen.HOME) })
 
@@ -662,13 +662,13 @@ class MainActivity : FragmentActivity() {
         }
         when (index) {
             0 -> {
-                body.addView(titleSerif("Partagez votre\nidentité Sésame\navec vos contacts.", PURPLE))
+                body.addView(titleSerif("Partagez votre\nidentité avec\nvos Sésames.", PURPLE))
                 body.addView(onboardingMonoSub("Une seule fois."))
                 body.addView(spacer(24))
                 body.addView(ctaTall("Partager maintenant", PURPLE) { shareKitByEmail() })
             }
             1 -> {
-                body.addView(titleSerif("Ajoutez l'identité\nSésame de vos\ncontacts.", PURPLE))
+                body.addView(titleSerif("Invitez\nvos Sésames.", PURPLE))
                 body.addView(onboardingMonoSub("Une seule fois."))
                 body.addView(spacer(24))
                 body.addView(ctaTall("Scanner un QR code", PURPLE) { launchQrScanner() })
@@ -724,12 +724,12 @@ class MainActivity : FragmentActivity() {
         val secret = transportCard(
             title = "Boîte secrète 🔒",
             tagline = "Idéal pour les équipes et entreprises",
-            description = "Votre document reste illisible pour tous sauf votre destinataire. Un SMS neutre l'avertit.",
+            description = "Votre document reste illisible pour tous sauf votre Sésame. Un SMS neutre l'avertit.",
         )
         val mail = transportCard(
             title = "Boîte mail 📧",
             tagline = "Idéal pour les particuliers",
-            description = "Votre document reste illisible pour tous sauf votre destinataire. Même dans sa boîte mail, même sur un autre téléphone.",
+            description = "Votre document reste illisible pour tous sauf votre Sésame. Même dans sa boîte mail, même sur un autre téléphone.",
         )
         fun refresh() {
             secret.second(selected == "secret")
@@ -817,7 +817,7 @@ class MainActivity : FragmentActivity() {
             .setTitle("⚠️ Attention")
             .setMessage(
                 "Réinitialiser votre identité supprimera définitivement votre clé actuelle.\n\n" +
-                "Vos contacts devront réenregistrer votre nouvelle identité pour pouvoir vous envoyer des documents.\n\n" +
+                "Vos Sésames devront réenregistrer votre nouvelle identité pour pouvoir vous envoyer des documents.\n\n" +
                 "Les documents déjà reçus resteront accessibles."
             )
             .setNegativeButton("Annuler", null)
@@ -860,7 +860,7 @@ class MainActivity : FragmentActivity() {
             layoutParams = LinearLayout.LayoutParams(size, size)
         })
         layout.addView(TextView(this).apply {
-            text = "Faites scanner ce QR par votre contact"
+            text = "Faites scanner ce QR par votre Sésame"
             typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG3)
             gravity = Gravity.CENTER
             layoutParams = lp().apply { topMargin = dp(20) }
@@ -936,6 +936,15 @@ class MainActivity : FragmentActivity() {
         body.addView(spacer(14))
         body.addView(ctaTall("Recevoir un document", PURPLE) {
             showTransportScreen(TransportAction.RECEIVE)
+        })
+        body.addView(spacer(20))
+        body.addView(TextView(this).apply {
+            text = "Vos documents. Vos Sésames. Personne d'autre."
+            typeface = MONO
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(FG4)
+            gravity = Gravity.CENTER
+            layoutParams = lp()
         })
 
         root.addView(body)
@@ -1360,7 +1369,7 @@ class MainActivity : FragmentActivity() {
 
         val body = bodyPad()
         body.addView(backLink { showScreen(Screen.SEND_DOC) })
-        body.addView(titleSerif("Choisissez\nle destinataire", PURPLE))
+        body.addView(titleSerif("Choisissez\nvotre Sésame", PURPLE))
         body.addView(spacer(14))
 
         val contacts = loadContacts()
@@ -1372,7 +1381,7 @@ class MainActivity : FragmentActivity() {
                 layoutParams = lp().apply { bottomMargin = dp(14) }
             }
             emptyCard.addView(TextView(this).apply {
-                text = "Aucun contact pour l'instant"
+                text = "Aucun Sésame pour l'instant"
                 typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG4); gravity = Gravity.CENTER
             })
             body.addView(emptyCard)
@@ -1399,7 +1408,7 @@ class MainActivity : FragmentActivity() {
                 card.addView(certRow(headerLabel, c.optString("device", "—"), headerColor))
                 if (isObsolete) {
                     card.addView(TextView(this).apply {
-                        text = "Clé obsolète — demandez à ce contact de renvoyer son kit Sésame"
+                        text = "Clé obsolète — demandez à ce Sésame de renvoyer son kit"
                         typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(Color.parseColor("#b88a20"))
                         layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(4) }
                     })
@@ -1409,7 +1418,7 @@ class MainActivity : FragmentActivity() {
             }
         }
         body.addView(spacer(8))
-        body.addView(ctaOutline("+ Ajouter un contact") { showScreen(Screen.CONTACTS) })
+        body.addView(ctaOutline("+ Inviter un Sésame") { showScreen(Screen.CONTACTS) })
 
         root.addView(body)
         return root
@@ -1419,7 +1428,7 @@ class MainActivity : FragmentActivity() {
         val pdf = selectedPdfBytes ?: return
         val recipient = selectedRecipient ?: return
         val recipientEncPk = recipient.getString("encryption_pk")
-        val recipientName = recipient.optString("name", "Destinataire")
+        val recipientName = recipient.optString("name", "Votre Sésame")
 
         val blobB64 = prefs().getString("signing_sk_blob", "") ?: ""
         val blob = android.util.Base64.decode(blobB64, android.util.Base64.DEFAULT)
@@ -1500,17 +1509,17 @@ class MainActivity : FragmentActivity() {
     private fun buildContacts(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Sésame", PURPLE, stepLabel("Contacts")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Mes Sésames")))
 
         val body = bodyPad()
         body.addView(backLink { showScreen(parentOfContacts()) })
         body.addView(eyebrow("Carnet"))
-        body.addView(titleSerif("Ajouter\nun contact", PURPLE))
+        body.addView(titleSerif("Inviter\nun Sésame", PURPLE))
         body.addView(spacer(14))
 
         // The "Clé Sésame" explainer still lives here — it answers what the user is about to add.
         body.addView(sesameInfoBlock(
-            "C'est la fusion unique et inséparable de trois éléments : l'identité Sésame de votre destinataire, son téléphone physique, et son empreinte digitale. Les trois doivent être réunis pour ouvrir le document. Voler un seul élément ne suffit pas."
+            "C'est la fusion unique et inséparable de trois éléments : l'identité Sésame de votre Sésame, son téléphone physique, et son empreinte digitale. Les trois doivent être réunis pour ouvrir le document. Voler un seul élément ne suffit pas."
         ))
         body.addView(spacer(18))
 
@@ -1543,7 +1552,7 @@ class MainActivity : FragmentActivity() {
 
         // ── SECTION 1 — Bandeau explication ──────────────────────────────
         body.addView(sesameInfoBlock(
-            "Votre identité numérique est votre adresse Sésame. Partagez-la pour que vos contacts puissent vous envoyer des documents que vous seul pouvez ouvrir."
+            "Votre identité numérique est votre adresse Sésame. Partagez-la pour que vos Sésames puissent vous envoyer des documents que vous seul pouvez ouvrir."
         ))
         body.addView(spacer(16))
 

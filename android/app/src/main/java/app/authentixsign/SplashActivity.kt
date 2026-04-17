@@ -44,11 +44,16 @@ class SplashActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
         })
 
+        val cormorantBold = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.cormorant_garamond_bold)
+            ?: Typeface.create("serif", Typeface.BOLD)
+        val cormorantRegular = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.cormorant_garamond_regular)
+            ?: Typeface.create("serif", Typeface.NORMAL)
+
         val title = TextView(this).apply {
-            text = "Sésame"
+            text = "SÉSAME"
             setTextColor(Color.parseColor("#6655c0"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
-            typeface = Typeface.create("serif", Typeface.BOLD)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 48f)
+            typeface = cormorantBold
             gravity = Gravity.CENTER
         }
         root.addView(title, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
@@ -56,10 +61,10 @@ class SplashActivity : Activity() {
         })
 
         val slogan = TextView(this).apply {
-            text = getString(R.string.slogan)
+            text = "Ouvre-toi !"
             setTextColor(Color.parseColor("#6a6860"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            typeface = Typeface.MONOSPACE
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
+            typeface = Typeface.create(cormorantRegular, Typeface.ITALIC)
             gravity = Gravity.CENTER
         }
         root.addView(slogan, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
