@@ -881,6 +881,11 @@ class MainActivity : FragmentActivity() {
         body.addView(guideText("① Choisissez un fichier PDF\n② Sélectionnez le destinataire dans vos contacts\n③ Appuyez sur Envoyer — le document sera chiffré pour le téléphone du destinataire uniquement"))
         body.addView(spacer(18))
 
+        // Pre-PDF explainer (écran 2b) — mono 11sp, FG3 (#6a6860)
+        body.addView(monoNote(
+            "Sélectionnez le fichier. Il ne sera envoyé qu'une fois chiffré — personne d'autre que votre destinataire ne pourra le lire. Il ne s'ouvrira pas sur sa boîte mail, pas sur son ordinateur, pas sur un autre téléphone. Uniquement sur son téléphone, avec son empreinte digitale."
+        ))
+
         // PDF picker card — show selected state
         val pdfLabel = if (selectedPdfBytes != null) "✓ ${selectedPdfName} (${selectedPdfBytes!!.size} octets)" else "Sélectionnez un fichier PDF"
         body.addView(pickerCard("📄", pdfLabel, "Parcourir") {
@@ -902,6 +907,20 @@ class MainActivity : FragmentActivity() {
         body.addView(spacer(24))
 
         val sendReady = selectedPdfBytes != null && selectedRecipient != null
+
+        // Écran 2c — Confirmation with device markers (shown when both PDF + recipient are selected)
+        if (sendReady) {
+            val r = selectedRecipient!!
+            val recipientName = r.optString("name", "Destinataire")
+            val device = r.optString("device", "")
+            val model = extractModel(device, r.optString("markers", "{}"))
+            val short4 = shortIdSuffix(r.optString("id_short", ""), r.optString("encryption_pk", ""))
+            body.addView(sesameInfoBlock(
+                "Seul le $model ...$short4 de $recipientName peut ouvrir ce document. Même sur sa boîte mail, même sur un autre téléphone — illisible."
+            ))
+            body.addView(spacer(8))
+        }
+
         val sendBtn = cta("Chiffrer et envoyer par email", PURPLE) {
             doEncryptAndSend()
         }
@@ -1065,6 +1084,14 @@ class MainActivity : FragmentActivity() {
             }
         }
         body.addView(spacer(10))
+
+        // ⓘ Clé Sésame — explanatory block (écran 2a)
+        body.addView(eyebrow("ⓘ Clé Sésame"))
+        body.addView(spacer(6))
+        body.addView(sesameInfoBlock(
+            "C'est la fusion unique et inséparable de trois éléments : l'identité Sésame de votre destinataire, son téléphone physique, et son empreinte digitale. Les trois doivent être réunis pour ouvrir le document. Voler un seul élément ne suffit pas."
+        ))
+        body.addView(spacer(14))
 
         body.addView(cta("Scanner un QR code", PURPLE) {
             launchQrScanner()
@@ -1356,6 +1383,35 @@ class MainActivity : FragmentActivity() {
         layoutParams = lp().apply { bottomMargin = dp(10) }
     }
 
+    /** Info block with purple left border (#6655c0) on #f0eefb background. */
+    private fun sesameInfoBlock(text: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        background = GradientDrawable().apply { setColor(Color.parseColor("#f0eefb")); cornerRadius = dp(2).toFloat() }
+        layoutParams = lp().apply { bottomMargin = dp(10) }
+        addView(View(this@MainActivity).apply {
+            setBackgroundColor(Color.parseColor("#6655c0"))
+            layoutParams = LinearLayout.LayoutParams(dp(2), MATCH_PARENT)
+        })
+        addView(TextView(this@MainActivity).apply {
+            this.text = text
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(FG2)
+            setLineSpacing(0f, 1.5f)
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        })
+    }
+
+    /** Monospace note: #6a6860 (FG3), 11sp, tight line spacing — used for cryptographic UX explainers. */
+    private fun monoNote(text: String) = TextView(this).apply {
+        this.text = text
+        typeface = MONO
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        setTextColor(FG3)
+        setLineSpacing(0f, 1.5f)
+        layoutParams = lp().apply { bottomMargin = dp(12); topMargin = dp(4) }
+    }
+
     private fun spacer(h: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(h)) }
 
     // ── Badges & labels ─────────────────────────────────────────────────
@@ -1523,6 +1579,27 @@ class MainActivity : FragmentActivity() {
     private fun purpleBorderIntense() = Color.argb(77, 102, 85, 192)
     private fun goldBorder() = Color.argb(46, 154, 122, 40)
     private fun trunc(b64: String) = if (b64.length > 12) "${b64.take(6)}…${b64.takeLast(4)}" else b64
+
+    /** Extract the device model. Prefers markers.model; falls back to device string minus brand. */
+    private fun extractModel(device: String, markersJson: String): String {
+        try {
+            val m = org.json.JSONObject(markersJson)
+            val model = m.optString("model", "").trim()
+            if (model.isNotEmpty()) return model
+            val brand = m.optString("brand", "").trim()
+            if (brand.isNotEmpty() && device.startsWith(brand)) {
+                return device.removePrefix(brand).trim().ifEmpty { device }
+            }
+        } catch (_: Exception) {}
+        return device.ifEmpty { "téléphone" }
+    }
+
+    /** Last 4 chars of id_short (or encryption_pk as fallback), sanitized. */
+    private fun shortIdSuffix(idShort: String, encPk: String): String {
+        val src = idShort.ifEmpty { encPk }
+        val alnum = src.filter { it.isLetterOrDigit() }
+        return if (alnum.length >= 4) alnum.takeLast(4) else alnum.ifEmpty { "????" }
+    }
 
     @Deprecated("Use onBackPressedDispatcher")
     override fun onBackPressed() {
