@@ -665,12 +665,7 @@ class MainActivity : FragmentActivity() {
                 body.addView(titleSerif("Partagez votre\nidentité Sésame\navec vos contacts.", PURPLE))
                 body.addView(onboardingMonoSub("Une seule fois."))
                 body.addView(spacer(24))
-                body.addView(ctaTall("Partager maintenant", PURPLE) {
-                    val kitJson = prefs().getString("signed_kit_json", "") ?: ""
-                    val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
-                    if (kitJson.isEmpty()) Toast.makeText(this, "Kit indisponible", Toast.LENGTH_SHORT).show()
-                    else shareKitByEmail(kitJson, device)
-                })
+                body.addView(ctaTall("Partager maintenant", PURPLE) { shareKitByEmail() })
             }
             1 -> {
                 body.addView(titleSerif("Ajoutez l'identité\nSésame de vos\ncontacts.", PURPLE))
@@ -1582,7 +1577,7 @@ class MainActivity : FragmentActivity() {
         // ── SECTION 3 — Partager mon identité ────────────────────────────
         body.addView(eyebrow("Partager"))
         body.addView(spacer(6))
-        body.addView(cta("Envoyer mon identité par email", PURPLE) { shareKitByEmail(kitJson, device) })
+        body.addView(cta("Envoyer mon identité par email", PURPLE) { shareKitByEmail() })
         body.addView(spacer(8))
         body.addView(ctaOutline("Afficher mon QR en grand") { showQrFullscreen(kitJson) })
         body.addView(spacer(24))
@@ -1632,29 +1627,63 @@ class MainActivity : FragmentActivity() {
     }
 
     /** Section 3 primary button — email with .sesame-id attached + detailed body per spec. */
-    private fun shareKitByEmail(kitJson: String, device: String) {
+    /** File currently attached to a pending share intent. Deleted on the next onResume —
+     *  we can't delete immediately because the receiving app reads the URI asynchronously. */
+    private var pendingKitFile: java.io.File? = null
+
+    /** Reads signed_kit_json from prefs, writes it to cacheDir/mon-identite.sesame-id,
+     *  launches a share chooser with that file attached, and schedules deletion when
+     *  the user returns to the app. */
+    private fun shareKitByEmail() {
+        val kitJson = prefs().getString("signed_kit_json", "") ?: ""
+        if (kitJson.isEmpty()) {
+            Toast.makeText(this, "Kit Sésame indisponible — recréez votre identité", Toast.LENGTH_LONG).show()
+            return
+        }
+        val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+        val body = "Bonjour,\n\n" +
+            "Voici mon identité numérique SÉSAME.\n\n" +
+            "Pour m'envoyer un document chiffré :\n" +
+            "1. Installez l'app SÉSAME : https://authentix-sign.tech\n" +
+            "2. Ouvrez ce fichier .sesame-id\n" +
+            "3. L'app vérifiera automatiquement mon identité\n" +
+            "4. Vous pourrez m'envoyer des documents que je serai le seul à pouvoir ouvrir.\n\n" +
+            device
+
         try {
             val file = java.io.File(cacheDir, "mon-identite.sesame-id")
-            file.writeText(kitJson)
-            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-            val body = "Bonjour,\n\n" +
-                "Voici mon identité numérique SÉSAME.\n\n" +
-                "Pour m'envoyer un document chiffré :\n" +
-                "1. Installez l'app SÉSAME : https://authentix-sign.tech\n" +
-                "2. Ouvrez ce fichier .sesame-id\n" +
-                "3. L'app vérifiera automatiquement mon identité\n" +
-                "4. Vous pourrez m'envoyer des documents que je serai le seul à pouvoir ouvrir.\n\n" +
-                "$device"
+            // Drop any stale kit bytes from a previous share to guarantee fresh content.
+            if (file.exists()) file.delete()
+            file.writeText(kitJson, Charsets.UTF_8)
+            if (!file.exists() || file.length() == 0L) {
+                Toast.makeText(this, "Erreur : fichier .sesame-id non écrit", Toast.LENGTH_LONG).show()
+                return
+            }
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                this, "$packageName.fileprovider", file,
+            )
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/octet-stream"
                 putExtra(Intent.EXTRA_STREAM, uri)
                 putExtra(Intent.EXTRA_SUBJECT, "Mon identité SÉSAME — $device")
                 putExtra(Intent.EXTRA_TEXT, body)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                // Some email apps (Outlook, Samsung Email) look at clipData for attachments.
+                clipData = android.content.ClipData.newRawUri("mon-identite.sesame-id", uri)
             }
+            pendingKitFile = file
             startActivity(Intent.createChooser(intent, "Envoyer mon identité par email"))
         } catch (e: Exception) {
-            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+            android.util.Log.e("SesameShare", "shareKitByEmail failed", e)
+            Toast.makeText(this, "Erreur partage : ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        pendingKitFile?.let { f ->
+            try { if (f.exists()) f.delete() } catch (_: Exception) {}
+            pendingKitFile = null
         }
     }
 
