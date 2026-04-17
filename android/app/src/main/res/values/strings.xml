@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SÉSAME</string>
-    <string name="slogan">Signez. Prouvez. Sans serveur.</string>
+    <string name="slogan">Ouvre-toi Sésame !</string>
 
     <string name="short_description">Signez vos documents avec votre empreinte. Sans serveur. Sans DocuSign.</string>
 
