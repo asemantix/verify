@@ -1,13 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Simple "A" glyph in AUTHENTIX gold on transparent background.
-     Adaptive icons require a 108x108dp canvas with the foreground art
-     centred in the inner 72x72dp safe zone. -->
+<!-- SÉSAME launcher foreground: the 5 concentric white arcs forming an S.
+     Adaptive icons require 108×108dp canvas. Kept viewport at 512 to
+     preserve the original SVG proportions exactly. Outer rings may be
+     trimmed by circular launcher masks — intentional bleed-off. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+    android:viewportWidth="512"
+    android:viewportHeight="512">
     <path
-        android:fillColor="#c9a84c"
-        android:pathData="M54,28 L34,80 L42,80 L46,68 L62,68 L66,80 L74,80 L54,28 Z M48,60 L54,42 L60,60 Z" />
+        android:pathData="M 308 176 C 333 155, 179 176, 197 245 C 211 295, 330 250, 312 331 C 328 358, 186 360, 199 340"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:strokeAlpha="0.95" />
+    <path
+        android:pathData="M 319 161 C 349 135, 164 161, 186 242 C 203 303, 345 249, 324 346 C 343 378, 173 381, 188 356"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:strokeAlpha="0.72" />
+    <path
+        android:pathData="M 330 145 C 365 115, 150 145, 175 240 C 195 310, 360 248, 336 360 C 358 398, 160 400, 178 372"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="2.1"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:strokeAlpha="0.52" />
+    <path
+        android:pathData="M 341 129 C 381 95, 136 129, 164 238 C 187 318, 375 247, 348 374 C 373 418, 147 421, 168 388"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:strokeAlpha="0.32" />
+    <path
+        android:pathData="M 352 114 C 397 75, 121 114, 153 235 C 179 325, 390 246, 360 389 C 387 438, 135 441, 157 404"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:strokeAlpha="0.16" />
 </vector>

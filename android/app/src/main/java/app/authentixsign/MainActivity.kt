@@ -49,7 +49,12 @@ class MainActivity : FragmentActivity() {
     private val WHITE    = Color.WHITE
 
     private val SERIF_B  = Typeface.create("serif", Typeface.BOLD)
-    private val MONO     = Typeface.MONOSPACE
+    private val MONO: Typeface by lazy {
+        androidx.core.content.res.ResourcesCompat.getFont(this, R.font.jetbrains_mono_regular) ?: Typeface.MONOSPACE
+    }
+    private val MONO_LIGHT: Typeface by lazy {
+        androidx.core.content.res.ResourcesCompat.getFont(this, R.font.jetbrains_mono_light) ?: MONO
+    }
 
     private lateinit var container: FrameLayout
     private var currentScreen = Screen.HOME

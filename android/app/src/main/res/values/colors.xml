@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SÉSAME design tokens — authoritative source. Kotlin reads these via ContextCompat.getColor. -->
+    <color name="sesame_purple">#6655c0</color>
+    <color name="sesame_purple_light">#f0eefb</color>
+    <color name="bg_warm">#f5f4f0</color>
+    <color name="fg_primary">#1a1a18</color>
+    <color name="success">#2d7a2d</color>
+    <color name="error">#b83232</color>
+</resources>
