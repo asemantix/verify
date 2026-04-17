@@ -742,13 +742,15 @@ class MainActivity : FragmentActivity() {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
         }
 
-        // Two primary actions — nothing else on this screen.
-        body.addView(ctaTall("Envoyer", PURPLE) {
+        body.addView(titleSerif("Que voulez-vous\nfaire ?", PURPLE))
+        body.addView(spacer(18))
+
+        body.addView(ctaTall("Envoyer un document", PURPLE) {
             selectedPdfBytes = null; selectedPdfName = ""; selectedRecipient = null
             showTransportScreen(TransportAction.SEND)
         })
         body.addView(spacer(14))
-        body.addView(ctaTall("Recevoir", PURPLE) {
+        body.addView(ctaTall("Recevoir un document", PURPLE) {
             showTransportScreen(TransportAction.RECEIVE)
         })
 
