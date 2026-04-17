@@ -758,6 +758,12 @@ class MainActivity : FragmentActivity() {
             "que vous ne contrôlez pas.",
             "Des signatures qui ne vous appartiennent plus.",
             "Piratables. Récoltables.",
+            "",
+            "Un code peut être volé.",
+            "Un mot de passe peut être partagé.",
+            "Un lien peut être cliqué par n'importe qui.",
+            "",
+            "Rien ne prouve que c'est vous.",
         )
         for (text in problemLines) {
             val tv = TextView(this).apply {
