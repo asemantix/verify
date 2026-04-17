@@ -28,7 +28,7 @@ import java.util.Arrays
 class MainActivity : FragmentActivity() {
 
     private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND, CONTACTS, MY_ID }
-    private enum class SetupReason { FIRST_TIME, INVALIDATED, LEGACY_RESET }
+    private enum class SetupReason { FIRST_TIME, INVALIDATED, LEGACY_RESET, USER_RESET }
     private var setupReason: SetupReason = SetupReason.FIRST_TIME
 
     // ── Design tokens (from authentix_design_system.html) ───────────────
@@ -48,7 +48,10 @@ class MainActivity : FragmentActivity() {
     private val BORDER   = Color.parseColor("#14000000")
     private val WHITE    = Color.WHITE
 
-    private val SERIF_B  = Typeface.create("serif", Typeface.BOLD)
+    private val SERIF_B: Typeface by lazy {
+        androidx.core.content.res.ResourcesCompat.getFont(this, R.font.cormorant_garamond_bold)
+            ?: Typeface.create("serif", Typeface.BOLD)
+    }
     private val MONO: Typeface by lazy {
         androidx.core.content.res.ResourcesCompat.getFont(this, R.font.jetbrains_mono_regular) ?: Typeface.MONOSPACE
     }
@@ -211,7 +214,7 @@ class MainActivity : FragmentActivity() {
             }
             else -> {
                 isSetupDone = prefs().contains("signing_pk")
-                if (!isSetupDone) showSetupScreen() else showScreen(Screen.HOME)
+                if (!isSetupDone) showSetupScreen() else resumeAfterKeysReady()
             }
         }
         handleIntent(intent)
@@ -389,10 +392,15 @@ class MainActivity : FragmentActivity() {
                 body.addView(spacer(12))
                 body.addView(guideText("Posez votre doigt pour générer vos nouvelles clés."))
             }
+            SetupReason.USER_RESET -> {
+                body.addView(eyebrow("Identité réinitialisée"))
+                body.addView(titleSerif("Créez une\nnouvelle identité", GOLD))
+                body.addView(sub("Votre ancienne clé a été supprimée à votre demande. Posez votre doigt pour en créer une nouvelle."))
+            }
             SetupReason.FIRST_TIME -> {
-                body.addView(eyebrow("Premier lancement"))
+                body.addView(eyebrow("Bienvenue"))
                 body.addView(titleSerif("Créez votre\nidentité", GOLD))
-                body.addView(sub("Posez votre empreinte pour générer vos clés cryptographiques. Elles ne quitteront jamais cet appareil."))
+                body.addView(sub("Posez votre doigt pour créer votre identité numérique. Elle est liée à CE téléphone et à VOTRE empreinte. Elle ne quitte jamais votre appareil."))
             }
         }
         body.addView(spacer(24))
@@ -471,13 +479,14 @@ class MainActivity : FragmentActivity() {
                     putString("markers", markersJson)
                     putString("signing_sk_blob", android.util.Base64.encodeToString(blob, android.util.Base64.NO_WRAP))
                     putString("signed_kit_json", signedKitJson)
+                    putLong("id_created_at", System.currentTimeMillis())
                 }.apply()
                 isSetupDone = true
                 status.text = "Identité créée ✓"; status.setTextColor(GREEN)
                 val reasonForSuccess = setupReason
                 setupReason = SetupReason.FIRST_TIME
                 container.postDelayed({
-                    if (reasonForSuccess == SetupReason.FIRST_TIME) showScreen(Screen.HOME)
+                    if (reasonForSuccess == SetupReason.FIRST_TIME) resumeAfterKeysReady()
                     else showPostSetupSuccess()
                 }, 900)
             },
@@ -512,10 +521,200 @@ class MainActivity : FragmentActivity() {
 
         body.addView(cta("Notifier tous mes contacts", GOLD) { notifyAllContacts() })
         body.addView(spacer(8))
-        body.addView(ctaOutline("Plus tard") { showScreen(Screen.HOME) })
+        body.addView(ctaOutline("Plus tard") { resumeAfterKeysReady() })
 
         root.addView(body)
         container.addView(scroll(root))
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ÉCRAN 0bis / 0ter — TRANSPORT + ONBOARDING
+    // ════════════════════════════════════════════════════════════════════
+
+    /** Called after any successful key creation. Routes through 0bis (if no transport
+     *  chosen yet) then 0ter (if onboarding not done) then lands on HOME. */
+    private fun resumeAfterKeysReady() {
+        val transport = prefs().getString("transport_mode", null)
+        val onboardingDone = prefs().getBoolean("onboarding_done", false)
+        when {
+            transport == null -> showTransportScreen()
+            !onboardingDone -> showOnboardingScreen()
+            else -> showScreen(Screen.HOME)
+        }
+    }
+
+    private fun showTransportScreen() {
+        container.removeAllViews()
+        val root = screenRoot()
+        root.addView(accentBar(PURPLE))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("2 / 3")))
+
+        val body = bodyPad()
+        body.addView(spacer(16))
+        body.addView(eyebrow("Transport"))
+        body.addView(titleSerif("Comment voulez-vous\nrecevoir vos documents ?", PURPLE))
+        body.addView(sub("Modifiable dans Réglages à tout moment."))
+        body.addView(spacer(14))
+
+        var selected: String? = null
+        lateinit var continueBtn: Button
+        val secretCard = transportCard(
+            icon = "🔒",
+            title = "BOÎTE SECRÈTE",
+            body = "Un SMS neutre vous prévient à l'arrivée. L'expéditeur reste anonyme. Aucune métadonnée visible.\n\nPour les particuliers et professions libérales.",
+        ) {
+            selected = "secret"
+            continueBtn.alpha = 1f; continueBtn.isEnabled = true
+        }
+        val mailCard = transportCard(
+            icon = "📧",
+            title = "BOÎTE MAIL",
+            body = "Le document arrive en pièce jointe email. Ouverture en un clic.\n\nPour les équipes et les entreprises.",
+        ) {
+            selected = "mail"
+            continueBtn.alpha = 1f; continueBtn.isEnabled = true
+        }
+        // Manage visual selection: refresh borders when tapping
+        val rerender = {
+            secretCard.second(selected == "secret")
+            mailCard.second(selected == "mail")
+        }
+        val secretWrap = secretCard.first.apply { setOnClickListener { selected = "secret"; continueBtn.alpha = 1f; continueBtn.isEnabled = true; rerender() } }
+        val mailWrap = mailCard.first.apply { setOnClickListener { selected = "mail"; continueBtn.alpha = 1f; continueBtn.isEnabled = true; rerender() } }
+        body.addView(secretWrap); body.addView(spacer(10))
+        body.addView(mailWrap); body.addView(spacer(10))
+        body.addView(monoNote("Dans les deux cas, votre document est inviolable. Seul le facteur change."))
+        body.addView(spacer(14))
+
+        continueBtn = cta("Continuer", PURPLE) {
+            selected?.let {
+                prefs().edit().putString("transport_mode", it).apply()
+                resumeAfterKeysReady()
+            }
+        }
+        continueBtn.alpha = 0.4f; continueBtn.isEnabled = false
+        body.addView(continueBtn)
+
+        root.addView(body)
+        container.addView(scroll(root))
+    }
+
+    /** Returns (the card view, a refresh callback that takes isSelected). */
+    private fun transportCard(icon: String, title: String, body: String, onClick: () -> Unit): Pair<LinearLayout, (Boolean) -> Unit> {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            layoutParams = lp().apply { bottomMargin = dp(6) }
+            isClickable = true; isFocusable = true
+            setOnClickListener { onClick() }
+        }
+        val header = TextView(this).apply {
+            text = "$icon   $title"
+            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(PURPLE); letterSpacing = 0.08f
+            layoutParams = lp().apply { bottomMargin = dp(6) }
+        }
+        val body2 = TextView(this).apply {
+            text = body
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f); setTextColor(FG2)
+            setLineSpacing(0f, 1.5f)
+            layoutParams = lp()
+        }
+        card.addView(header); card.addView(body2)
+        val refresh = { selected: Boolean ->
+            card.background = GradientDrawable().apply {
+                setColor(if (selected) PURPLE_L else Color.parseColor("#fcfbf8"))
+                setStroke(dp(if (selected) 2 else 1), if (selected) PURPLE else BORDER)
+                cornerRadius = dp(6).toFloat()
+            }
+        }
+        refresh(false)
+        return card to refresh
+    }
+
+    private fun showOnboardingScreen() {
+        container.removeAllViews()
+        val root = screenRoot()
+        root.addView(accentBar(PURPLE))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("3 / 3")))
+
+        val body = bodyPad()
+        body.addView(spacer(16))
+        body.addView(eyebrow("Comment ça marche"))
+        body.addView(titleSerif("Vos premiers pas", PURPLE))
+        body.addView(sub("SÉSAME vous permet d'envoyer et de recevoir des documents signés de manière sécurisée. Tout se passe sur votre téléphone. Aucun serveur."))
+        body.addView(spacer(10))
+        body.addView(guideText(
+            "Pour commencer :\n① Partagez votre identité avec les personnes qui veulent vous envoyer des documents.\n② Ajoutez à vos contacts les personnes à qui vous voulez envoyer des documents.\n\nLes documents reçus arrivent par email ou SMS. Cliquez sur la pièce jointe .sesame et l'app s'ouvre automatiquement."
+        ))
+        body.addView(spacer(18))
+        body.addView(cta("Commencer", PURPLE) {
+            prefs().edit().putBoolean("onboarding_done", true).apply()
+            showScreen(Screen.HOME)
+        })
+        root.addView(body)
+        container.addView(scroll(root))
+    }
+
+    // ── User-initiated identity reset (called from Mon identité danger zone) ──
+    private fun confirmUserResetIdentity() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("⚠️ Attention")
+            .setMessage(
+                "Réinitialiser votre identité supprimera définitivement votre clé actuelle.\n\n" +
+                "Vos contacts devront réenregistrer votre nouvelle identité pour pouvoir vous envoyer des documents.\n\n" +
+                "Les documents déjà reçus resteront accessibles."
+            )
+            .setNegativeButton("Annuler", null)
+            .setPositiveButton("Confirmer") { _, _ ->
+                wipeSesameKeys()
+                BiometricHelper.destroyKey()
+                markAllContactsObsolete()
+                setupReason = SetupReason.USER_RESET
+                isSetupDone = false
+                showSetupScreen()
+            }
+            .show()
+    }
+
+    // ── QR fullscreen modal ──────────────────────────────────────────────
+    private fun showQrFullscreen(kitJson: String) {
+        val bmp = generateQr(kitJson) ?: run {
+            Toast.makeText(this, "Erreur QR", Toast.LENGTH_SHORT).show(); return
+        }
+        container.removeAllViews()
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.WHITE)
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            isClickable = true
+            setOnClickListener {
+                // Restore brightness and return to Mon identité.
+                window?.attributes = window?.attributes?.apply { screenBrightness = -1f }
+                showScreen(Screen.MY_ID)
+            }
+        }
+        layout.addView(android.widget.ImageView(this).apply {
+            setImageBitmap(bmp)
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            val size = (resources.displayMetrics.widthPixels * 0.85f).toInt()
+            layoutParams = LinearLayout.LayoutParams(size, size)
+        })
+        layout.addView(TextView(this).apply {
+            text = "Faites scanner ce QR par votre contact"
+            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG3)
+            gravity = Gravity.CENTER
+            layoutParams = lp().apply { topMargin = dp(20) }
+        })
+        layout.addView(TextView(this).apply {
+            text = "(Touchez l'écran pour fermer)"
+            typeface = MONO_LIGHT; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(FG4)
+            gravity = Gravity.CENTER
+            layoutParams = lp().apply { topMargin = dp(8) }
+        })
+        window?.attributes = window?.attributes?.apply { screenBrightness = 1f }
+        container.addView(layout)
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -673,13 +872,24 @@ class MainActivity : FragmentActivity() {
         root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 2/3")))
 
         val body = bodyPad()
+        val pdf = decryptedPdfBytes
+        val pageCount = pdf?.let { countPdfPages(it) } ?: 1
+        val timerSeconds = when {
+            pageCount <= 1 -> 10
+            pageCount <= 5 -> 20
+            else -> 40
+        }
+        val needScroll = pageCount > 5
+
         body.addView(eyebrow("Lecture obligatoire"))
         body.addView(titleSerif("Lisez le\ndocument", PURPLE))
-        body.addView(guideText("Prenez le temps de lire le document ci-dessous. Le bouton de signature s'activera après 10 secondes de lecture."))
+        val gateExplainer = when {
+            needScroll -> "Document de $pageCount pages. Le bouton s'activera après ${timerSeconds}s OU dès que vous aurez défilé jusqu'en bas."
+            else -> "Document de $pageCount page(s). Le bouton s'activera après ${timerSeconds}s de lecture."
+        }
+        body.addView(guideText(gateExplainer))
         body.addView(spacer(10))
 
-        // Document info card
-        val pdf = decryptedPdfBytes
         if (pdf != null) {
             val hashHex = sha3Hex(pdf)
             val infoCard = LinearLayout(this).apply {
@@ -688,23 +898,22 @@ class MainActivity : FragmentActivity() {
                 layoutParams = lp().apply { bottomMargin = dp(10) }
             }
             infoCard.addView(certRow("État", "Déchiffré ✓", GREEN))
+            infoCard.addView(certRow("Pages", pageCount.toString(), GREEN))
             infoCard.addView(certRow("Taille", "${pdf.size} octets", GREEN))
             infoCard.addView(certRow("H(doc)", "${hashHex.take(8)}…${hashHex.takeLast(4)}", GREEN))
             infoCard.addView(certRow("Référence", pendingDocRef, GREEN))
             body.addView(infoCard)
 
-            // Render first page with PdfRenderer if possible
             val pdfBitmap = renderPdfFirstPage(pdf)
             if (pdfBitmap != null) {
-                val iv = android.widget.ImageView(this).apply {
+                body.addView(android.widget.ImageView(this).apply {
                     setImageBitmap(pdfBitmap)
                     scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
                     adjustViewBounds = true
                     setPadding(dp(2), dp(2), dp(2), dp(2))
                     background = card_bg()
                     layoutParams = lp().apply { bottomMargin = dp(14) }
-                }
-                body.addView(iv)
+                })
             } else {
                 body.addView(docPreview(10))
             }
@@ -713,12 +922,11 @@ class MainActivity : FragmentActivity() {
         }
         body.addView(spacer(6))
 
-        // Timer bar
         val timerRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             layoutParams = lp().apply { bottomMargin = dp(14) }
         }
-        val timerTxt = timerLabel("0:10")
+        val timerTxt = timerLabel("0:%02d".format(timerSeconds))
         val timerElapsed = timerLabel("0:00")
         val timerBarBg = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(0, dp(3), 1f).apply { setMargins(dp(10), 0, dp(10), 0) }
@@ -727,23 +935,68 @@ class MainActivity : FragmentActivity() {
         timerRow.addView(timerElapsed); timerRow.addView(timerBarBg); timerRow.addView(timerTxt)
         body.addView(timerRow)
 
-        body.addView(sub("Lecture obligatoire — le bouton s'active dans 10 secondes").apply { gravity = Gravity.CENTER; setTextColor(FG4) })
+        val hint = sub(
+            if (needScroll) "Faites défiler jusqu'en bas pour activer la signature"
+            else "Lecture obligatoire — le bouton s'active dans ${timerSeconds}s"
+        ).apply { gravity = Gravity.CENTER; setTextColor(FG4) }
+        body.addView(hint)
         body.addView(spacer(14))
 
         val signBtn = cta("Signer ce document", PURPLE) { showScreen(Screen.SIGN) }
         signBtn.alpha = 0.4f; signBtn.isEnabled = false
         body.addView(signBtn)
 
-        // Countdown — enable button after 10s
-        object : CountDownTimer(10000, 1000) {
+        // Dual-gate state: [timerDone, scrollSatisfied]. For 1-5 pages, scroll is auto-satisfied.
+        val gate = booleanArrayOf(false, !needScroll)
+        fun maybeUnlock() {
+            if (gate[0] && gate[1]) {
+                signBtn.alpha = 1f; signBtn.isEnabled = true
+                hint.text = "Signature disponible"
+            }
+        }
+
+        object : CountDownTimer(timerSeconds * 1000L, 1000) {
             var elapsed = 0
-            override fun onTick(ms: Long) { elapsed++; timerElapsed.text = "0:%02d".format(elapsed); signBtn.alpha = 0.4f + (elapsed / 10f) * 0.6f }
-            override fun onFinish() { timerElapsed.text = "0:10"; signBtn.alpha = 1f; signBtn.isEnabled = true }
+            override fun onTick(ms: Long) {
+                elapsed++
+                timerElapsed.text = "0:%02d".format(elapsed)
+                if (!gate[0]) signBtn.alpha = 0.4f + (elapsed.toFloat() / timerSeconds) * 0.4f
+            }
+            override fun onFinish() {
+                timerElapsed.text = "0:%02d".format(timerSeconds)
+                gate[0] = true; maybeUnlock()
+            }
         }.start()
+
+        if (needScroll) {
+            body.post {
+                var p: android.view.ViewParent? = body.parent
+                while (p != null && p !is ScrollView) p = p.parent
+                (p as? ScrollView)?.setOnScrollChangeListener { v, _, sy, _, _ ->
+                    val ch = (v as ScrollView).getChildAt(0) ?: return@setOnScrollChangeListener
+                    if (ch.bottom - (sy + v.height) <= dp(12)) {
+                        gate[1] = true; maybeUnlock()
+                    }
+                }
+            }
+        }
 
         root.addView(body)
         root.addView(dots(3, 5, PURPLE))
         return root
+    }
+
+    private fun countPdfPages(pdfBytes: ByteArray): Int {
+        if (Build.VERSION.SDK_INT < 21) return 1
+        return try {
+            val tmp = java.io.File.createTempFile("count_", ".pdf", cacheDir)
+            tmp.writeBytes(pdfBytes)
+            val fd = android.os.ParcelFileDescriptor.open(tmp, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+            val renderer = android.graphics.pdf.PdfRenderer(fd)
+            val n = renderer.pageCount
+            renderer.close(); fd.close(); tmp.delete()
+            n.coerceAtLeast(1)
+        } catch (e: Exception) { 1 }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -1168,69 +1421,129 @@ class MainActivity : FragmentActivity() {
 
     private fun buildMyId(): LinearLayout {
         val root = screenRoot()
-        root.addView(accentBar(GOLD))
-        root.addView(topBar("Sésame", GOLD, stepLabel("Mon identité")))
+        root.addView(accentBar(PURPLE))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Mon identité")))
 
         val body = bodyPad()
         body.addView(backLink { showScreen(Screen.HOME) })
-        body.addView(eyebrow("Carte d'identité numérique"))
-        body.addView(titleSerif("Mon\nidentité", GOLD))
-        body.addView(sub("Votre carte d'identité numérique. Partagez-la avec les personnes qui doivent vous envoyer des documents chiffrés."))
-        body.addView(guideText("Comment partager :\n① Montrez le QR code ci-dessous à scanner (en face à face)\n② Envoyez-le par email avec le bouton « Partager »\n③ Exportez un fichier .sesame-id à transmettre"))
-        body.addView(spacer(14))
 
         val spk = prefs().getString("signing_pk", "") ?: ""
         val epk = prefs().getString("encryption_pk", "") ?: ""
-
-        // Kit was signed at setup time and cached — no bio prompt needed to display it.
         val kitJson = prefs().getString("signed_kit_json", "") ?: fallbackUnsignedKit(spk, epk)
-        val qrBitmap = generateQr(kitJson)
+        val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+        val shortId = shortIdSuffix("", epk)
+        val createdAt = prefs().getLong("id_created_at", 0L)
 
+        // ── SECTION 1 — Bandeau explication ──────────────────────────────
+        body.addView(sesameInfoBlock(
+            "Votre identité numérique est votre adresse Sésame. Partagez-la pour que vos contacts puissent vous envoyer des documents que vous seul pouvez ouvrir."
+        ))
+        body.addView(spacer(16))
+
+        // ── SECTION 2 — Mon QR code ──────────────────────────────────────
+        body.addView(eyebrow("À FAIRE SCANNER PAR VOS CONTACTS"))
+        body.addView(titleSerif("Mon QR d'identité", PURPLE))
+        body.addView(spacer(10))
+        val qrBitmap = generateQr(kitJson)
         if (qrBitmap != null) {
             val qrContainer = LinearLayout(this).apply {
                 gravity = Gravity.CENTER; setPadding(dp(16), dp(16), dp(16), dp(16))
-                background = card_bg(); layoutParams = lp().apply { bottomMargin = dp(14) }
+                background = GradientDrawable().apply { setColor(WHITE); setStroke(dp(1), BORDER); cornerRadius = dp(4).toFloat() }
+                layoutParams = lp().apply { bottomMargin = dp(10) }
             }
-            val iv = android.widget.ImageView(this).apply {
+            qrContainer.addView(android.widget.ImageView(this).apply {
                 setImageBitmap(qrBitmap); scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-                layoutParams = LinearLayout.LayoutParams(dp(200), dp(200))
-            }
-            qrContainer.addView(iv)
+                layoutParams = LinearLayout.LayoutParams(dp(240), dp(240))
+            })
             body.addView(qrContainer)
-        } else {
-            body.addView(sub("Erreur de génération du QR code").apply { setTextColor(RED) })
         }
-        body.addView(spacer(14))
-
-        // Identity card
-        val idCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = GradientDrawable().apply { setColor(GOLD_L); setStroke(dp(1), goldBorder()); cornerRadius = dp(4).toFloat() }
-            layoutParams = lp().apply { bottomMargin = dp(14) }
+        val qrSubCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = GradientDrawable().apply { setColor(PURPLE_L); cornerRadius = dp(4).toFloat() }
+            layoutParams = lp().apply { bottomMargin = dp(18) }
         }
-        idCard.addView(certRow("Appareil", "${Build.MANUFACTURER} ${Build.MODEL}", GOLD))
-        idCard.addView(certRow("Clé signature", trunc(spk), GOLD))
-        idCard.addView(certRow("Clé chiffrement", trunc(epk), GOLD))
-        idCard.addView(certRow("Compteur τ", MonotonicCounter.peek(this).toString(), GOLD))
-        body.addView(idCard)
+        qrSubCard.addView(certRow("Nom appareil", device, PURPLE))
+        qrSubCard.addView(certRow("Identifiant", "...$shortId", PURPLE))
+        qrSubCard.addView(certRow("Clé tronquée", trunc(spk), PURPLE))
+        body.addView(qrSubCard)
 
-        // Full keys (copyable)
-        body.addView(eyebrow("Clés complètes (appui long = copier)"))
+        // ── SECTION 3 — Partager mon identité ────────────────────────────
+        body.addView(eyebrow("Partager"))
         body.addView(spacer(6))
-        body.addView(copyableKey("signing_pk", spk))
-        body.addView(spacer(4))
-        body.addView(copyableKey("encryption_pk", epk))
+        body.addView(cta("Envoyer mon identité par email", PURPLE) { shareKitByEmail(kitJson, device) })
+        body.addView(spacer(8))
+        body.addView(ctaOutline("Afficher mon QR en grand") { showQrFullscreen(kitJson) })
         body.addView(spacer(24))
 
-        // Share button
-        body.addView(cta("Partager par email", GOLD) { shareKit(kitJson) })
-        body.addView(spacer(8))
-        body.addView(ctaOutline("Exporter .sesame-id") { exportKit(kitJson) })
-        body.addView(spacer(8))
-        body.addView(ctaOutline("Notifier mes contacts d'un changement") { notifyAllContacts() })
+        // ── SECTION 4 — Mes informations ─────────────────────────────────
+        body.addView(eyebrow("Mes informations"))
+        body.addView(spacer(6))
+        val infoCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = GradientDrawable().apply {
+                setColor(WHITE); setStroke(1, BORDER); cornerRadius = dp(8).toFloat()
+            }
+            layoutParams = lp().apply { bottomMargin = dp(24) }
+        }
+        infoCard.addView(certRow("Appareil", device, PURPLE))
+        infoCard.addView(certRow("Identifiant", "...$shortId", PURPLE))
+        infoCard.addView(certRow("Algorithme", "ML-DSA-65 (post-quantique)", PURPLE))
+        infoCard.addView(certRow("Clé", trunc(spk), PURPLE))
+        infoCard.addView(certRow("Créée le", if (createdAt > 0) formatDateTime(createdAt) else "—", PURPLE))
+        infoCard.addView(certRow("Statut", "✅ Active", GREEN))
+        body.addView(infoCard)
+
+        // ── SECTION 5 — Zone danger ──────────────────────────────────────
+        body.addView(View(this).apply {
+            setBackgroundColor(BORDER)
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 1).apply { bottomMargin = dp(10) }
+        })
+        body.addView(eyebrow("Zone sensible").apply { setTextColor(RED) })
+        body.addView(spacer(6))
+        body.addView(Button(this).apply {
+            text = "⚠️ RÉINITIALISER MON IDENTITÉ"
+            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f); setTextColor(RED)
+            letterSpacing = 0.1f; isAllCaps = false; stateListAnimator = null; elevation = 0f
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = GradientDrawable().apply { setColor(Color.TRANSPARENT); setStroke(dp(1), RED); cornerRadius = dp(2).toFloat() }
+            layoutParams = lp()
+            setOnClickListener { confirmUserResetIdentity() }
+        })
 
         root.addView(body)
         return root
+    }
+
+    private fun formatDateTime(millis: Long): String {
+        val sdf = java.text.SimpleDateFormat("dd/MM/yyyy 'à' HH:mm", java.util.Locale.FRANCE)
+        return sdf.format(java.util.Date(millis))
+    }
+
+    /** Section 3 primary button — email with .sesame-id attached + detailed body per spec. */
+    private fun shareKitByEmail(kitJson: String, device: String) {
+        try {
+            val file = java.io.File(cacheDir, "mon-identite.sesame-id")
+            file.writeText(kitJson)
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val body = "Bonjour,\n\n" +
+                "Voici mon identité numérique SÉSAME.\n\n" +
+                "Pour m'envoyer un document chiffré :\n" +
+                "1. Installez l'app SÉSAME : https://authentix-sign.tech\n" +
+                "2. Ouvrez ce fichier .sesame-id\n" +
+                "3. L'app vérifiera automatiquement mon identité\n" +
+                "4. Vous pourrez m'envoyer des documents que je serai le seul à pouvoir ouvrir.\n\n" +
+                "$device"
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/octet-stream"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Mon identité SÉSAME — $device")
+                putExtra(Intent.EXTRA_TEXT, body)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Envoyer mon identité par email"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun fallbackUnsignedKit(spk: String, epk: String): String {
