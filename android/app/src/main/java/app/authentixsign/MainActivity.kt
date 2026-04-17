@@ -30,6 +30,8 @@ class MainActivity : FragmentActivity() {
     private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND_DOC, SEND_RECIPIENT, CONTACTS, MY_ID }
     private var onTransportScreen = false
     private var onQrFullscreen = false
+    private var onOnboarding = false
+    private var onboardingPager: androidx.viewpager2.widget.ViewPager2? = null
     private enum class SetupReason { FIRST_TIME, INVALIDATED, LEGACY_RESET, USER_RESET }
     private var setupReason: SetupReason = SetupReason.FIRST_TIME
 
@@ -99,7 +101,11 @@ class MainActivity : FragmentActivity() {
             } else {
                 Toast.makeText(this, "❌ Clé Sésame non vérifiée — fichier corrompu ou falsifié", Toast.LENGTH_LONG).show()
             }
-            showScreen(if (selectedPdfBytes != null) Screen.SEND_RECIPIENT else Screen.HOME)
+            when {
+                onOnboarding -> advanceOnboardingToPage(2)
+                selectedPdfBytes != null -> showScreen(Screen.SEND_RECIPIENT)
+                else -> showScreen(Screen.HOME)
+            }
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur import : ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -141,7 +147,11 @@ class MainActivity : FragmentActivity() {
             } else {
                 Toast.makeText(this, "❌ Clé Sésame non vérifiée — QR corrompu ou falsifié", Toast.LENGTH_LONG).show()
             }
-            showScreen(if (selectedPdfBytes != null) Screen.SEND_RECIPIENT else Screen.HOME)
+            when {
+                onOnboarding -> advanceOnboardingToPage(2)
+                selectedPdfBytes != null -> showScreen(Screen.SEND_RECIPIENT)
+                else -> showScreen(Screen.HOME)
+            }
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur QR : ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -217,7 +227,11 @@ class MainActivity : FragmentActivity() {
             }
             else -> {
                 isSetupDone = prefs().contains("signing_pk")
-                if (!isSetupDone) showSetupScreen() else showScreen(Screen.HOME)
+                when {
+                    !isSetupDone -> showSetupScreen()
+                    !prefs().getBoolean("onboarding_done", false) -> showOnboardingScreen()
+                    else -> showScreen(Screen.HOME)
+                }
             }
         }
         handleIntent(intent)
@@ -302,7 +316,11 @@ class MainActivity : FragmentActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this, "Erreur import : ${e.message}", Toast.LENGTH_LONG).show()
                 }
-                showScreen(if (selectedPdfBytes != null) Screen.SEND_RECIPIENT else Screen.HOME)
+                when {
+                onOnboarding -> advanceOnboardingToPage(2)
+                selectedPdfBytes != null -> showScreen(Screen.SEND_RECIPIENT)
+                else -> showScreen(Screen.HOME)
+            }
             }
         }
     }
@@ -491,8 +509,11 @@ class MainActivity : FragmentActivity() {
                 val reasonForSuccess = setupReason
                 setupReason = SetupReason.FIRST_TIME
                 container.postDelayed({
-                    if (reasonForSuccess == SetupReason.FIRST_TIME) showScreen(Screen.HOME)
-                    else showPostSetupSuccess()
+                    when {
+                        reasonForSuccess != SetupReason.FIRST_TIME -> showPostSetupSuccess()
+                        !prefs().getBoolean("onboarding_done", false) -> showOnboardingScreen()
+                        else -> showScreen(Screen.HOME)
+                    }
                 }, 900)
             },
             onError = { msg ->
@@ -535,6 +556,149 @@ class MainActivity : FragmentActivity() {
     // ════════════════════════════════════════════════════════════════════
     //  ÉCRAN TRANSPORT — affiché à chaque Envoyer et chaque Recevoir
     // ════════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ONBOARDING — 3-page swipeable ViewPager (shown once after setup)
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun showOnboardingScreen() {
+        onOnboarding = true
+        onTransportScreen = false
+        onQrFullscreen = false
+        container.removeAllViews()
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(BG)
+            layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+        }
+        root.addView(accentBar(PURPLE))
+
+        val pager = androidx.viewpager2.widget.ViewPager2(this).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
+            adapter = OnboardingAdapter()
+        }
+        onboardingPager = pager
+        root.addView(pager)
+
+        // Dots indicator — 3 circles, active one is solid purple, others 30% opacity.
+        val dotsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(18), dp(24), dp(12))
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        }
+        val dots = Array(3) {
+            View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(8), dp(8)).apply { setMargins(dp(6), 0, dp(6), 0) }
+            }
+        }
+        fun paintDots(active: Int) {
+            for (i in dots.indices) {
+                dots[i].background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(PURPLE)
+                }
+                dots[i].alpha = if (i == active) 1f else 0.3f
+            }
+        }
+        dots.forEach { dotsRow.addView(it) }
+        paintDots(0)
+        root.addView(dotsRow)
+
+        // Skip link — discreet, on every page (always visible under the dots).
+        root.addView(TextView(this).apply {
+            text = "Passer l'onboarding"
+            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f); setTextColor(FG4)
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(6), dp(12), dp(18))
+            isClickable = true; isFocusable = true
+            setOnClickListener { completeOnboarding() }
+        })
+
+        pager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) { paintDots(position) }
+        })
+
+        container.addView(root)
+    }
+
+    private fun completeOnboarding() {
+        prefs().edit().putBoolean("onboarding_done", true).apply()
+        onOnboarding = false
+        onboardingPager = null
+        showScreen(Screen.HOME)
+    }
+
+    private fun advanceOnboardingToPage(target: Int) {
+        onboardingPager?.currentItem = target
+    }
+
+    /** RecyclerView adapter for the 3 onboarding pages. Uses viewType = position
+     *  so each page reuses the same ViewHolder that was built for its index. */
+    private inner class OnboardingAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<OnboardingAdapter.VH>() {
+        inner class VH(v: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(v)
+        override fun getItemCount() = 3
+        override fun getItemViewType(position: Int) = position
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
+            val v = buildOnboardingPage(viewType).apply {
+                layoutParams = androidx.recyclerview.widget.RecyclerView.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            }
+            return VH(v)
+        }
+        override fun onBindViewHolder(holder: VH, position: Int) {}
+    }
+
+    private fun buildOnboardingPage(index: Int): View {
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(BG)
+            layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+        }
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(28), dp(40), dp(28), dp(40))
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+        }
+        when (index) {
+            0 -> {
+                body.addView(titleSerif("Partagez votre\nidentité Sésame\navec vos contacts.", PURPLE))
+                body.addView(onboardingMonoSub("Une seule fois."))
+                body.addView(spacer(24))
+                body.addView(ctaTall("Partager maintenant", PURPLE) {
+                    val kitJson = prefs().getString("signed_kit_json", "") ?: ""
+                    val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+                    if (kitJson.isEmpty()) Toast.makeText(this, "Kit indisponible", Toast.LENGTH_SHORT).show()
+                    else shareKitByEmail(kitJson, device)
+                })
+            }
+            1 -> {
+                body.addView(titleSerif("Ajoutez l'identité\nSésame de vos\ncontacts.", PURPLE))
+                body.addView(onboardingMonoSub("Une seule fois."))
+                body.addView(spacer(24))
+                body.addView(ctaTall("Scanner un QR code", PURPLE) { launchQrScanner() })
+                body.addView(spacer(10))
+                body.addView(ctaOutline("Ouvrir un .sesame-id") {
+                    importKitLauncher.launch(arrayOf("*/*"))
+                })
+            }
+            2 -> {
+                body.addView(titleSerif("Vous êtes\nprêt.", PURPLE))
+                body.addView(spacer(24))
+                body.addView(ctaTall("Commencer", PURPLE) { completeOnboarding() })
+            }
+        }
+        scroll.addView(body)
+        return scroll
+    }
+
+    private fun onboardingMonoSub(text: String) = TextView(this).apply {
+        this.text = text
+        typeface = MONO
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        setTextColor(FG3)
+        layoutParams = lp().apply { topMargin = dp(4) }
+    }
 
     private enum class TransportAction { SEND, RECEIVE }
 
@@ -724,6 +888,8 @@ class MainActivity : FragmentActivity() {
         currentScreen = s
         onTransportScreen = false
         onQrFullscreen = false
+        onOnboarding = false
+        onboardingPager = null
         container.removeAllViews()
         // HOME is a fixed-layout dashboard (no scroll) so bottom settings can anchor.
         if (s == Screen.HOME) {
@@ -1915,6 +2081,7 @@ class MainActivity : FragmentActivity() {
     @Deprecated("Use onBackPressedDispatcher")
     override fun onBackPressed() {
         when {
+            onOnboarding -> Unit  // hardware back disabled during onboarding
             onQrFullscreen -> {
                 window?.attributes = window?.attributes?.apply { screenBrightness = -1f }
                 showScreen(Screen.MY_ID)
