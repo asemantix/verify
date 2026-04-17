@@ -792,9 +792,13 @@ class MainActivity : FragmentActivity() {
         val mono14 = Color.parseColor("#1a1a18")
 
         val solutionLines = listOf(
-            "Sésame est un lieu d'échanges",
-            "et de signatures de documents",
+            "Sésame est un outil professionnel",
+            "d'échanges et de signatures de documents",
             "entre parties identifiées.",
+            "",
+            "Notaires. Avocats. Médecins.",
+            "Banques. Entreprises.",
+            "Tout professionnel qui engage sa signature.",
             "",
             "Sans tiers de confiance.",
             "Sans serveur.",
