@@ -27,8 +27,7 @@ import java.util.Arrays
 
 class MainActivity : FragmentActivity() {
 
-    private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND_DOC, SEND_RECIPIENT, CONTACTS, MY_ID }
-    private var onTransportScreen = false
+    private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND_DOC, CONTACTS, SESAME_PROFILE, INVITE, MY_ID }
     private var onQrFullscreen = false
     private var onOnboarding = false
     private var onboardingPager: androidx.viewpager2.widget.ViewPager2? = null
@@ -80,7 +79,6 @@ class MainActivity : FragmentActivity() {
     private var selectedPdfBytes: ByteArray? = null
     private var selectedPdfName: String = ""
     private var selectedRecipient: org.json.JSONObject? = null
-    private var pendingSendTransport: String? = null   // "secret" | "mail", set by Transport screen, reset on Home return
 
     // ── Activity result launchers ───────────────────────────────────────
     private val importKitLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -103,8 +101,7 @@ class MainActivity : FragmentActivity() {
             }
             when {
                 onOnboarding -> advanceOnboardingToPage(2)
-                selectedPdfBytes != null -> showScreen(Screen.SEND_RECIPIENT)
-                else -> showScreen(Screen.HOME)
+                else -> showScreen(Screen.CONTACTS)
             }
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur import : ${e.message}", Toast.LENGTH_LONG).show()
@@ -149,8 +146,7 @@ class MainActivity : FragmentActivity() {
             }
             when {
                 onOnboarding -> advanceOnboardingToPage(2)
-                selectedPdfBytes != null -> showScreen(Screen.SEND_RECIPIENT)
-                else -> showScreen(Screen.HOME)
+                else -> showScreen(Screen.CONTACTS)
             }
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur QR : ${e.message}", Toast.LENGTH_LONG).show()
@@ -318,8 +314,7 @@ class MainActivity : FragmentActivity() {
                 }
                 when {
                 onOnboarding -> advanceOnboardingToPage(2)
-                selectedPdfBytes != null -> showScreen(Screen.SEND_RECIPIENT)
-                else -> showScreen(Screen.HOME)
+                else -> showScreen(Screen.CONTACTS)
             }
             }
         }
@@ -563,7 +558,6 @@ class MainActivity : FragmentActivity() {
 
     private fun showOnboardingScreen() {
         onOnboarding = true
-        onTransportScreen = false
         onQrFullscreen = false
         container.removeAllViews()
 
@@ -695,113 +689,7 @@ class MainActivity : FragmentActivity() {
         layoutParams = lp().apply { topMargin = dp(4) }
     }
 
-    private enum class TransportAction { SEND, RECEIVE }
-
-    /** Picks "Boîte secrète" vs "Boîte mail" for one flow. No persistence —
-     *  the choice lives only for the duration of the current Send or Receive action. */
-    private fun showTransportScreen(action: TransportAction) {
-        onTransportScreen = true
-        onQrFullscreen = false
-        container.removeAllViews()
-        val root = screenRoot()
-        root.addView(accentBar(PURPLE))
-        root.addView(topBar("Sésame", PURPLE, stepLabel("Transport")))
-
-        val body = bodyPad()
-        body.addView(backLink { showScreen(Screen.HOME) })
-        body.addView(titleSerif(
-            when (action) {
-                TransportAction.SEND -> "Comment voulez-vous\nenvoyer ce document ?"
-                TransportAction.RECEIVE -> "Comment voulez-vous\nrecevoir ce document ?"
-            },
-            PURPLE,
-        ))
-        // NO explanatory text between title and cards — each card speaks for itself.
-        body.addView(spacer(14))
-
-        var selected: String? = null
-        lateinit var continueBtn: Button
-        val secret = transportCard(
-            title = "Boîte secrète 🔒",
-            tagline = "Idéal pour les équipes et entreprises",
-            description = "Votre document reste illisible pour tous sauf votre Sésame. Un SMS neutre l'avertit.",
-        )
-        val mail = transportCard(
-            title = "Boîte mail 📧",
-            tagline = "Idéal pour les particuliers",
-            description = "Votre document reste illisible pour tous sauf votre Sésame. Même dans sa boîte mail, même sur un autre téléphone.",
-        )
-        fun refresh() {
-            secret.second(selected == "secret")
-            mail.second(selected == "mail")
-            continueBtn.alpha = if (selected != null) 1f else 0.4f
-            continueBtn.isEnabled = selected != null
-        }
-        secret.first.setOnClickListener { selected = "secret"; refresh() }
-        mail.first.setOnClickListener { selected = "mail"; refresh() }
-        body.addView(secret.first); body.addView(spacer(10))
-        body.addView(mail.first); body.addView(spacer(18))
-
-        continueBtn = ctaTall("Continuer", PURPLE) {
-            val pick = selected ?: return@ctaTall
-            when (action) {
-                TransportAction.SEND -> {
-                    pendingSendTransport = pick
-                    showScreen(Screen.SEND_DOC)
-                }
-                TransportAction.RECEIVE -> when (pick) {
-                    "mail" -> receiveSesameLauncher.launch(arrayOf("*/*"))
-                    "secret" -> {
-                        Toast.makeText(this, "Boîte secrète — à venir", Toast.LENGTH_LONG).show()
-                        showScreen(Screen.HOME)
-                    }
-                }
-            }
-        }
-        refresh()
-        body.addView(continueBtn)
-
-        root.addView(body)
-        container.addView(scroll(root))
-    }
-
-    /** Selectable transport card: title (SERIF bold, icon inline), tagline (mono micro-label),
-     *  description (serif body). Returns (card view, refresh callback taking isSelected). */
-    private fun transportCard(title: String, tagline: String, description: String): Pair<LinearLayout, (Boolean) -> Unit> {
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-            layoutParams = lp()
-            isClickable = true; isFocusable = true
-        }
-        card.addView(TextView(this).apply {
-            text = title
-            typeface = SERIF_B; setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f); setTextColor(PURPLE)
-            layoutParams = lp().apply { bottomMargin = dp(4) }
-        })
-        card.addView(TextView(this).apply {
-            text = tagline
-            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f); setTextColor(PURPLE); letterSpacing = 0.04f
-            layoutParams = lp().apply { bottomMargin = dp(10) }
-        })
-        card.addView(TextView(this).apply {
-            text = description
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f); setTextColor(FG2)
-            setLineSpacing(0f, 1.5f)
-            layoutParams = lp()
-        })
-        val refresh = { isSelected: Boolean ->
-            card.background = GradientDrawable().apply {
-                setColor(if (isSelected) PURPLE_L else Color.parseColor("#fcfbf8"))
-                setStroke(dp(if (isSelected) 2 else 1), if (isSelected) PURPLE else BORDER)
-                cornerRadius = dp(6).toFloat()
-            }
-        }
-        refresh(false)
-        return card to refresh
-    }
-
-    /** Full-width 52dp-tall purple primary CTA. Used for Transport Continue. */
+    /** Full-width 52dp-tall purple primary CTA used on Home, Invite, Send, etc. */
     private fun ctaTall(label: String, bgColor: Int, onClick: () -> Unit) = Button(this).apply {
         text = label.uppercase(); typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(WHITE)
         letterSpacing = 0.1f; isAllCaps = false; stateListAnimator = null; elevation = 0f
@@ -838,7 +726,6 @@ class MainActivity : FragmentActivity() {
             Toast.makeText(this, "Erreur QR", Toast.LENGTH_SHORT).show(); return
         }
         onQrFullscreen = true
-        onTransportScreen = false
         container.removeAllViews()
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -881,7 +768,6 @@ class MainActivity : FragmentActivity() {
 
     private fun showScreen(s: Screen) {
         currentScreen = s
-        onTransportScreen = false
         onQrFullscreen = false
         onOnboarding = false
         onboardingPager = null
@@ -898,8 +784,9 @@ class MainActivity : FragmentActivity() {
             Screen.READ            -> buildRead()
             Screen.SIGN            -> buildSign()
             Screen.SEND_DOC        -> buildSendDoc()
-            Screen.SEND_RECIPIENT  -> buildSendRecipient()
             Screen.CONTACTS        -> buildContacts()
+            Screen.SESAME_PROFILE  -> buildSesameProfile()
+            Screen.INVITE          -> buildInvite()
             Screen.MY_ID           -> buildMyId()
             Screen.HOME            -> buildHome() // unreachable; exhaustiveness only
         }))
@@ -916,28 +803,52 @@ class MainActivity : FragmentActivity() {
             layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         }
         root.addView(accentBar(PURPLE))
-        // Discrete Mon identité icon in the top-right corner.
         root.addView(topBar("Sésame", PURPLE, iconButton("🆔") { showScreen(Screen.MY_ID) }))
 
         val body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(24), dp(24), dp(24), dp(24))
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(28), dp(36), dp(28), dp(36))
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
         }
 
-        body.addView(titleSerif("Que voulez-vous\nfaire ?", PURPLE))
-        body.addView(spacer(18))
+        body.addView(spacer(16))
+        body.addView(TextView(this).apply {
+            text = "SÉSAME"
+            typeface = SERIF_B
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 48f)
+            setTextColor(PURPLE)
+            gravity = Gravity.CENTER
+            layoutParams = lp()
+        })
+        body.addView(TextView(this).apply {
+            text = "Ouvre-toi !"
+            typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+            setTextColor(FG3)
+            gravity = Gravity.CENTER
+            layoutParams = lp().apply { topMargin = dp(4) }
+        })
 
-        body.addView(ctaTall("Envoyer un document", PURPLE) {
-            selectedPdfBytes = null; selectedPdfName = ""; selectedRecipient = null
-            showTransportScreen(TransportAction.SEND)
+        // Flex spacer pushes CTAs down toward the middle/lower half.
+        body.addView(View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
         })
-        body.addView(spacer(14))
-        body.addView(ctaTall("Recevoir un document", PURPLE) {
-            showTransportScreen(TransportAction.RECEIVE)
+
+        val contactCount = loadContacts().length()
+        if (contactCount > 0) {
+            body.addView(ctaTall("Mes Sésames ($contactCount)", PURPLE) {
+                showScreen(Screen.CONTACTS)
+            })
+            body.addView(spacer(12))
+        }
+        body.addView(ctaTall("Inviter un Sésame", PURPLE) {
+            showScreen(Screen.INVITE)
         })
-        body.addView(spacer(20))
+
+        body.addView(View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 0.6f)
+        })
         body.addView(TextView(this).apply {
             text = "Vos documents. Vos Sésames. Personne d'autre."
             typeface = MONO
@@ -1337,15 +1248,29 @@ class MainActivity : FragmentActivity() {
     // ════════════════════════════════════════════════════════════════════
 
     /** Screen A — select the PDF document to send. */
+    /** Écran SEND_DOC — last step before sending. Recipient is already pinned via
+     *  selectedRecipient set in the Sésame profile. User picks a PDF here and
+     *  Continuer triggers the encrypt-and-send flow directly. */
     private fun buildSendDoc(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 1/2")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Envoyer")))
 
         val body = bodyPad()
-        body.addView(backLink { showScreen(Screen.HOME) })
+        body.addView(backLink { showScreen(Screen.SESAME_PROFILE) })
         body.addView(titleSerif("Sélectionnez\nle document", PURPLE))
         body.addView(spacer(14))
+
+        val r = selectedRecipient
+        if (r != null) {
+            val model = extractModel(r.optString("device", ""), r.optString("markers", "{}"))
+            val short4 = shortIdSuffix(r.optString("id_short", ""), r.optString("encryption_pk", ""))
+            val name = r.optString("name", "Votre Sésame")
+            body.addView(sesameInfoBlock(
+                "Seul le $model ...$short4 de $name peut ouvrir ce document. Même sur sa boîte mail, même sur un autre téléphone — illisible."
+            ))
+            body.addView(spacer(14))
+        }
 
         val pdfLabel = if (selectedPdfBytes != null) "✓ ${selectedPdfName} (${selectedPdfBytes!!.size} octets)" else "Sélectionnez un fichier PDF"
         body.addView(pickerCard("📄", pdfLabel, "Parcourir") {
@@ -1353,72 +1278,9 @@ class MainActivity : FragmentActivity() {
         })
         body.addView(spacer(18))
 
-        val continueBtn = ctaTall("Continuer", PURPLE) { showScreen(Screen.SEND_RECIPIENT) }
+        val continueBtn = ctaTall("Chiffrer et envoyer", PURPLE) { doEncryptAndSend() }
         if (selectedPdfBytes == null) { continueBtn.alpha = 0.4f; continueBtn.isEnabled = false }
         body.addView(continueBtn)
-
-        root.addView(body)
-        return root
-    }
-
-    /** Screen B — pick a recipient (or add a new contact). Tapping a verified contact triggers the send flow. */
-    private fun buildSendRecipient(): LinearLayout {
-        val root = screenRoot()
-        root.addView(accentBar(PURPLE))
-        root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 2/2")))
-
-        val body = bodyPad()
-        body.addView(backLink { showScreen(Screen.SEND_DOC) })
-        body.addView(titleSerif("Choisissez\nvotre Sésame", PURPLE))
-        body.addView(spacer(14))
-
-        val contacts = loadContacts()
-        if (contacts.length() == 0) {
-            val emptyCard = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
-                setPadding(dp(16), dp(24), dp(16), dp(24))
-                background = card_bg()
-                layoutParams = lp().apply { bottomMargin = dp(14) }
-            }
-            emptyCard.addView(TextView(this).apply {
-                text = "Aucun Sésame pour l'instant"
-                typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG4); gravity = Gravity.CENTER
-            })
-            body.addView(emptyCard)
-        } else {
-            for (i in 0 until contacts.length()) {
-                val c = contacts.getJSONObject(i)
-                val isObsolete = c.optBoolean("obsolete", false)
-                val card = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
-                    background = GradientDrawable().apply {
-                        setColor(if (isObsolete) Color.parseColor("#fff6e0") else PURPLE_L)
-                        setStroke(dp(1), if (isObsolete) Color.parseColor("#b88a20") else purpleBorder())
-                        cornerRadius = dp(4).toFloat()
-                    }
-                    layoutParams = lp().apply { bottomMargin = dp(8) }
-                    isClickable = !isObsolete; isFocusable = !isObsolete
-                    if (!isObsolete) setOnClickListener {
-                        selectedRecipient = c
-                        doEncryptAndSend()
-                    }
-                }
-                val headerLabel = if (isObsolete) "⚠️ ${c.getString("name")}" else "✅ ${c.getString("name")}"
-                val headerColor = if (isObsolete) Color.parseColor("#b88a20") else PURPLE
-                card.addView(certRow(headerLabel, c.optString("device", "—"), headerColor))
-                if (isObsolete) {
-                    card.addView(TextView(this).apply {
-                        text = "Clé obsolète — demandez à ce Sésame de renvoyer son kit"
-                        typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(Color.parseColor("#b88a20"))
-                        layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(4) }
-                    })
-                }
-                card.addView(certRow("ID", c.optString("id_short", "—"), headerColor))
-                body.addView(card)
-            }
-        }
-        body.addView(spacer(8))
-        body.addView(ctaOutline("+ Inviter un Sésame") { showScreen(Screen.CONTACTS) })
 
         root.addView(body)
         return root
@@ -1506,29 +1368,191 @@ class MainActivity : FragmentActivity() {
     //  7. CONTACTS — Carnet d'adresses
     // ════════════════════════════════════════════════════════════════════
 
+    /** Mes Sésames — list of verified contacts. Tap a row to open that Sésame's profile. */
     private fun buildContacts(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
         root.addView(topBar("Sésame", PURPLE, stepLabel("Mes Sésames")))
 
         val body = bodyPad()
-        body.addView(backLink { showScreen(parentOfContacts()) })
-        body.addView(eyebrow("Carnet"))
-        body.addView(titleSerif("Inviter\nun Sésame", PURPLE))
+        body.addView(backLink { showScreen(Screen.HOME) })
+        body.addView(titleSerif("Mes\nSésames", PURPLE))
         body.addView(spacer(14))
 
-        // The "Clé Sésame" explainer still lives here — it answers what the user is about to add.
-        body.addView(sesameInfoBlock(
-            "C'est la fusion unique et inséparable de trois éléments : l'identité Sésame de votre Sésame, son téléphone physique, et son empreinte digitale. Les trois doivent être réunis pour ouvrir le document. Voler un seul élément ne suffit pas."
-        ))
-        body.addView(spacer(18))
-
-        body.addView(cta("Scanner un QR code", PURPLE) { launchQrScanner() })
-        body.addView(spacer(8))
-        body.addView(ctaOutline("Ouvrir un .sesame-id") { importKitLauncher.launch(arrayOf("*/*")) })
+        val contacts = loadContacts()
+        if (contacts.length() == 0) {
+            val emptyCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+                setPadding(dp(16), dp(24), dp(16), dp(24))
+                background = card_bg()
+                layoutParams = lp().apply { bottomMargin = dp(14) }
+            }
+            emptyCard.addView(TextView(this).apply {
+                text = "Aucun Sésame pour l'instant"
+                typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG4); gravity = Gravity.CENTER
+            })
+            body.addView(emptyCard)
+        } else {
+            for (i in 0 until contacts.length()) {
+                val c = contacts.getJSONObject(i)
+                val isObsolete = c.optBoolean("obsolete", false)
+                val card = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(14), dp(14), dp(14))
+                    background = GradientDrawable().apply {
+                        setColor(if (isObsolete) Color.parseColor("#fff6e0") else PURPLE_L)
+                        setStroke(dp(1), if (isObsolete) Color.parseColor("#b88a20") else purpleBorder())
+                        cornerRadius = dp(4).toFloat()
+                    }
+                    layoutParams = lp().apply { bottomMargin = dp(8) }
+                    isClickable = true; isFocusable = true
+                    setOnClickListener {
+                        selectedRecipient = c
+                        showScreen(Screen.SESAME_PROFILE)
+                    }
+                }
+                val color = if (isObsolete) Color.parseColor("#b88a20") else PURPLE
+                val mark = if (isObsolete) "⚠️" else "✅"
+                card.addView(TextView(this).apply {
+                    text = "$mark ${c.getString("name")}"
+                    typeface = SERIF_B; setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f); setTextColor(color)
+                    layoutParams = lp().apply { bottomMargin = dp(4) }
+                })
+                card.addView(TextView(this).apply {
+                    text = "${c.optString("device", "—")}  ·  ${c.optString("id_short", "—")}"
+                    typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f); setTextColor(FG3)
+                    layoutParams = lp()
+                })
+                if (isObsolete) {
+                    card.addView(TextView(this).apply {
+                        text = "Clé obsolète — demandez à ce Sésame de renvoyer son kit"
+                        typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(Color.parseColor("#b88a20"))
+                        layoutParams = lp().apply { topMargin = dp(6) }
+                    })
+                }
+                body.addView(card)
+            }
+        }
+        body.addView(spacer(10))
+        body.addView(ctaOutline("+ Inviter un Sésame") { showScreen(Screen.INVITE) })
 
         root.addView(body)
         return root
+    }
+
+    /** Profil d'un Sésame — the only place Envoyer/Recevoir buttons appear. */
+    private fun buildSesameProfile(): LinearLayout {
+        val root = screenRoot()
+        root.addView(accentBar(PURPLE))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Sésame")))
+
+        val body = bodyPad()
+        body.addView(backLink { showScreen(Screen.CONTACTS) })
+
+        val r = selectedRecipient
+        if (r == null) {
+            body.addView(sub("Aucun Sésame sélectionné."))
+            root.addView(body)
+            return root
+        }
+        val isObsolete = r.optBoolean("obsolete", false)
+        val color = if (isObsolete) Color.parseColor("#b88a20") else PURPLE
+
+        body.addView(titleSerif(r.optString("name", "Sésame"), color))
+        body.addView(TextView(this).apply {
+            text = "${r.optString("device", "—")}  ·  ${r.optString("id_short", "—")}"
+            typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG3)
+            layoutParams = lp().apply { bottomMargin = dp(4) }
+        })
+        if (isObsolete) {
+            body.addView(sesameInfoBlock(
+                "Clé obsolète — demandez à ce Sésame de renvoyer son kit avant de lui envoyer un document."
+            ))
+        }
+        body.addView(spacer(24))
+
+        body.addView(ctaTall("Envoyer un document", PURPLE) {
+            if (isObsolete) {
+                Toast.makeText(this, "Clé obsolète — réimportez d'abord son identité", Toast.LENGTH_LONG).show()
+            } else {
+                selectedPdfBytes = null; selectedPdfName = ""
+                showScreen(Screen.SEND_DOC)
+            }
+        })
+        body.addView(spacer(12))
+        body.addView(ctaTall("Recevoir un document", PURPLE) {
+            receiveSesameLauncher.launch(arrayOf("*/*"))
+        })
+
+        root.addView(body)
+        return root
+    }
+
+    /** Invite screen — offers SMS + email with .sesame-id attached. */
+    private fun buildInvite(): LinearLayout {
+        val root = screenRoot()
+        root.addView(accentBar(PURPLE))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Inviter")))
+
+        val body = bodyPad()
+        body.addView(backLink { showScreen(Screen.HOME) })
+        body.addView(titleSerif("Inviter\nun Sésame", PURPLE))
+        body.addView(spacer(14))
+        body.addView(sesameInfoBlock(
+            "Envoyez-lui un lien pour qu'il installe Sésame, puis demandez-lui son identité en retour."
+        ))
+        body.addView(spacer(18))
+
+        body.addView(ctaTall("Inviter par SMS", PURPLE) { sendInviteSms() })
+        body.addView(spacer(12))
+        body.addView(ctaTall("Inviter par email", PURPLE) { sendInviteEmailWithKit() })
+
+        root.addView(body)
+        return root
+    }
+
+    private fun sendInviteSms() {
+        val body = "Installe Sésame pour recevoir mes documents sécurisés : https://authentix-sign.tech\n" +
+            "Quand c'est fait envoie-moi ton identité Sésame."
+        try {
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = android.net.Uri.parse("smsto:")
+                putExtra("sms_body", body)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Aucune app SMS disponible", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun sendInviteEmailWithKit() {
+        val kitJson = prefs().getString("signed_kit_json", "") ?: ""
+        if (kitJson.isEmpty()) {
+            Toast.makeText(this, "Kit Sésame indisponible", Toast.LENGTH_LONG).show()
+            return
+        }
+        try {
+            val file = java.io.File(cacheDir, "mon-identite.sesame-id")
+            if (file.exists()) file.delete()
+            file.writeText(kitJson, Charsets.UTF_8)
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                this, "$packageName.fileprovider", file,
+            )
+            val body = "Installe Sésame : https://authentix-sign.tech\n" +
+                "Ouvre le fichier joint pour m'ajouter à tes Sésames. Renvoie-moi ton identité."
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/octet-stream"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Mon identité Sésame")
+                putExtra(Intent.EXTRA_TEXT, body)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = android.content.ClipData.newRawUri("mon-identite.sesame-id", uri)
+            }
+            pendingKitFile = file
+            startActivity(Intent.createChooser(intent, "Inviter par email"))
+        } catch (e: Exception) {
+            android.util.Log.e("SesameShare", "sendInviteEmailWithKit failed", e)
+            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -2105,16 +2129,12 @@ class MainActivity : FragmentActivity() {
         Screen.RECEIVE         -> Screen.HOME
         Screen.READ            -> Screen.HOME
         Screen.SIGN            -> Screen.READ
-        Screen.SEND_DOC        -> Screen.HOME
-        Screen.SEND_RECIPIENT  -> Screen.SEND_DOC
-        Screen.CONTACTS        -> parentOfContacts()
+        Screen.SEND_DOC        -> Screen.SESAME_PROFILE
+        Screen.SESAME_PROFILE  -> Screen.CONTACTS
+        Screen.CONTACTS        -> Screen.HOME
+        Screen.INVITE          -> Screen.HOME
         Screen.MY_ID           -> Screen.HOME
     }
-
-    /** Contacts is reached from SEND_RECIPIENT (via + Ajouter) or directly from Home flows.
-     *  If a PDF is selected, we're in the Send flow → back goes to step B; otherwise Home. */
-    private fun parentOfContacts(): Screen =
-        if (selectedPdfBytes != null) Screen.SEND_RECIPIENT else Screen.HOME
 
     @Deprecated("Use onBackPressedDispatcher")
     override fun onBackPressed() {
@@ -2124,7 +2144,6 @@ class MainActivity : FragmentActivity() {
                 window?.attributes = window?.attributes?.apply { screenBrightness = -1f }
                 showScreen(Screen.MY_ID)
             }
-            onTransportScreen -> showScreen(Screen.HOME)
             currentScreen == Screen.HOME -> super.onBackPressed()
             else -> showScreen(parentOf(currentScreen))
         }
