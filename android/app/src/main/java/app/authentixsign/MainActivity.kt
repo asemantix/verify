@@ -22,10 +22,14 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
+import java.security.SecureRandom
+import java.util.Arrays
 
 class MainActivity : FragmentActivity() {
 
     private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND, CONTACTS, MY_ID }
+    private enum class SetupReason { FIRST_TIME, INVALIDATED, LEGACY_RESET }
+    private var setupReason: SetupReason = SetupReason.FIRST_TIME
 
     // ── Design tokens (from authentix_design_system.html) ───────────────
     private val BG       = Color.parseColor("#f5f4f0")
@@ -141,9 +145,21 @@ class MainActivity : FragmentActivity() {
     // ── Contact storage ─────────────────────────────────────────────────
     private fun saveContact(name: String, signingPk: String, encryptionPk: String, markersJson: String, device: String, idShort: String) {
         val contacts = loadContacts()
+        // Dedupe by signing_pk: update in place and clear obsolete flag.
+        for (i in 0 until contacts.length()) {
+            val c = contacts.getJSONObject(i)
+            if (c.optString("signing_pk") == signingPk) {
+                c.put("name", name); c.put("encryption_pk", encryptionPk)
+                c.put("markers", markersJson); c.put("device", device); c.put("id_short", idShort)
+                c.put("obsolete", false)
+                prefs().edit().putString("contacts", contacts.toString()).apply()
+                return
+            }
+        }
         contacts.put(org.json.JSONObject().apply {
             put("name", name); put("signing_pk", signingPk); put("encryption_pk", encryptionPk)
             put("markers", markersJson); put("device", device); put("id_short", idShort)
+            put("obsolete", false)
         })
         prefs().edit().putString("contacts", contacts.toString()).apply()
     }
@@ -161,8 +177,33 @@ class MainActivity : FragmentActivity() {
         }
         setContentView(container)
 
-        isSetupDone = prefs().contains("signing_pk")
-        if (!isSetupDone) showSetupScreen() else showScreen(Screen.HOME)
+        // Legacy plaintext-key detection: force reset to hardware-backed flow
+        val hasLegacyKeys = prefs().contains("signing_sk") || prefs().contains("encryption_sk") ||
+                prefs().contains("master_seed") || prefs().contains("bio_hash")
+        val hasWrappedKeys = prefs().contains("signing_sk_blob")
+
+        when {
+            hasLegacyKeys -> {
+                wipeSesameKeys()
+                BiometricHelper.destroyKey()
+                markAllContactsObsolete()
+                setupReason = SetupReason.LEGACY_RESET
+                isSetupDone = false
+                showSetupScreen()
+            }
+            hasWrappedKeys && !BiometricHelper.isKeyUsable() -> {
+                wipeSesameKeys()
+                BiometricHelper.destroyKey()
+                markAllContactsObsolete()
+                setupReason = SetupReason.INVALIDATED
+                isSetupDone = false
+                showSetupScreen()
+            }
+            else -> {
+                isSetupDone = prefs().contains("signing_pk")
+                if (!isSetupDone) showSetupScreen() else showScreen(Screen.HOME)
+            }
+        }
         handleIntent(intent)
     }
 
@@ -252,6 +293,62 @@ class MainActivity : FragmentActivity() {
 
     private fun prefs() = getSharedPreferences("authentix", MODE_PRIVATE)
 
+    // ── Identity lifecycle helpers ──────────────────────────────────────
+
+    private fun wipeSesameKeys() {
+        prefs().edit().apply {
+            remove("signing_pk"); remove("encryption_pk"); remove("markers")
+            remove("signing_sk"); remove("encryption_sk")   // legacy plaintext
+            remove("master_seed"); remove("bio_hash")       // legacy artifacts
+            remove("signing_sk_blob"); remove("encryption_sk_blob")
+            remove("signed_kit_json")
+        }.apply()
+    }
+
+    private fun markAllContactsObsolete() {
+        val contacts = loadContacts()
+        var changed = false
+        for (i in 0 until contacts.length()) {
+            val c = contacts.getJSONObject(i)
+            if (!c.optBoolean("obsolete", false)) {
+                c.put("obsolete", true); changed = true
+            }
+        }
+        if (changed) prefs().edit().putString("contacts", contacts.toString()).apply()
+    }
+
+    private fun handleKeyInvalidated() {
+        wipeSesameKeys()
+        BiometricHelper.destroyKey()
+        markAllContactsObsolete()
+        setupReason = SetupReason.INVALIDATED
+        isSetupDone = false
+        showSetupScreen()
+    }
+
+    private fun notifyAllContacts() {
+        val kitJson = prefs().getString("signed_kit_json", "") ?: ""
+        if (kitJson.isEmpty()) {
+            Toast.makeText(this, "Kit indisponible", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val file = java.io.File(cacheDir, "mon-identite.sesame-id")
+            file.writeText(kitJson)
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/x-sesame"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "J'ai une nouvelle identité Sésame — mettez à jour ma clé")
+                putExtra(Intent.EXTRA_TEXT, "Mon identité Sésame a changé. Ouvrez ce fichier pour mettre à jour ma clé automatiquement.")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Notifier mes contacts"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════════
     //  SETUP — Premier lancement (thème or / Device)
     // ════════════════════════════════════════════════════════════════════
@@ -266,9 +363,28 @@ class MainActivity : FragmentActivity() {
             setPadding(dp(24), dp(32), dp(24), dp(24))
             layoutParams = lp()
         }
-        body.addView(eyebrow("Premier lancement"))
-        body.addView(titleSerif("Créez votre\nidentité", GOLD))
-        body.addView(sub("Posez votre empreinte pour générer vos clés cryptographiques. Elles ne quitteront jamais cet appareil."))
+
+        when (setupReason) {
+            SetupReason.INVALIDATED -> {
+                body.addView(eyebrow("Identité réinitialisée"))
+                body.addView(titleSerif("Nouvelle\nempreinte détectée", GOLD))
+                body.addView(sub("Votre identité Sésame a été réinitialisée. Une nouvelle empreinte a été détectée sur ce téléphone. Par sécurité, votre ancienne clé a été détruite."))
+                body.addView(spacer(12))
+                body.addView(guideText("Posez votre doigt pour créer une nouvelle identité."))
+            }
+            SetupReason.LEGACY_RESET -> {
+                body.addView(eyebrow("Mise à jour de sécurité"))
+                body.addView(titleSerif("Identité à\nrecréer", GOLD))
+                body.addView(sub("Votre clé est maintenant stockée dans le TEE matériel de votre téléphone, protégée par votre empreinte. L'ancien format de test a été supprimé."))
+                body.addView(spacer(12))
+                body.addView(guideText("Posez votre doigt pour générer vos nouvelles clés."))
+            }
+            SetupReason.FIRST_TIME -> {
+                body.addView(eyebrow("Premier lancement"))
+                body.addView(titleSerif("Créez votre\nidentité", GOLD))
+                body.addView(sub("Posez votre empreinte pour générer vos clés cryptographiques. Elles ne quitteront jamais cet appareil."))
+            }
+        }
         body.addView(spacer(24))
 
         val status = sub(""); status.gravity = Gravity.CENTER
@@ -276,36 +392,120 @@ class MainActivity : FragmentActivity() {
         body.addView(spacer(14))
 
         body.addView(bioZoneFull(GOLD_L, goldBorder(), GOLD, "Confirmer la création", false) {
-            status.text = "Authentification…"; status.setTextColor(FG3)
-            BiometricHelper.authenticate(this, "Créer votre identité", "Posez votre doigt",
-                onSuccess = { bio -> status.text = "Génération des clés…"; doSetup(bio, status) },
-                onError   = { msg -> status.text = "Erreur : $msg"; status.setTextColor(RED) })
+            status.text = "Génération des clés…"; status.setTextColor(FG3)
+            doSetup(status)
         })
         body.addView(spacer(10))
-        body.addView(sub("Usage unique · lié à cet appareil uniquement").apply { gravity = Gravity.CENTER; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(FG4) })
+        body.addView(sub("Identité liée à ce téléphone et à vos empreintes actuelles").apply {
+            gravity = Gravity.CENTER; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(FG4)
+        })
 
         root.addView(body)
         root.addView(dots(1, 3, GOLD))
         container.addView(scroll(root))
     }
 
-    private fun doSetup(bio: ByteArray, status: TextView) {
+    private fun doSetup(status: TextView) {
+        // Entropy for Rust setup (hashed into derivation, not a bio proof — bio binding is in Keystore wrap).
+        val entropy = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        val signingSkB64: String
+        val encryptionSkB64: String
+        val signingPk: String
+        val encryptionPk: String
+        val markersJson: String
         try {
             val aid = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
-            val r = AuthentixCore.setup(aid, Build.FINGERPRINT, Build.MANUFACTURER, Build.MODEL, ByteArray(0), bio, Build.VERSION.RELEASE, "1.0.0")
+            val r = AuthentixCore.setup(aid, Build.FINGERPRINT, Build.MANUFACTURER, Build.MODEL, ByteArray(0), entropy, Build.VERSION.RELEASE, "1.0.0")
             val j = org.json.JSONObject(r); val kit = j.getJSONObject("kit")
-            prefs().edit().apply {
-                putString("signing_pk", kit.getString("signing_pk"))
-                putString("encryption_pk", kit.getString("encryption_pk"))
-                putString("markers", kit.getJSONObject("markers").toString())
-                putString("signing_sk", j.getString("signing_sk"))
-                putString("encryption_sk", j.getString("encryption_sk"))
-                putString("master_seed", j.getString("master_seed"))
-                putString("bio_hash", j.getString("bio_hash"))
-            }.apply()
-            isSetupDone = true; status.text = "Identité créée ✓"; status.setTextColor(GREEN)
-            container.postDelayed({ showScreen(Screen.HOME) }, 1200)
-        } catch (e: Exception) { status.text = "Erreur : ${e.message}"; status.setTextColor(RED) }
+            signingPk = kit.getString("signing_pk")
+            encryptionPk = kit.getString("encryption_pk")
+            markersJson = kit.getJSONObject("markers").toString()
+            signingSkB64 = j.getString("signing_sk")
+            encryptionSkB64 = j.getString("encryption_sk")
+        } catch (e: Exception) {
+            Arrays.fill(entropy, 0)
+            status.text = "Erreur génération : ${e.message}"; status.setTextColor(RED)
+            return
+        }
+        Arrays.fill(entropy, 0)
+
+        // Build the signed kit NOW while the SK is in memory — cached in prefs so "Mon identité" never needs a bio prompt.
+        val signingSk = android.util.Base64.decode(signingSkB64, android.util.Base64.DEFAULT)
+        val signedKitJson: String = try {
+            AuthentixCore.buildKit(signingPk, encryptionPk, signingSk, markersJson,
+                Build.MANUFACTURER + " " + Build.MODEL, "")
+        } catch (e: Exception) {
+            Arrays.fill(signingSk, 0)
+            status.text = "Erreur kit : ${e.message}"; status.setTextColor(RED)
+            return
+        }
+
+        // Combined SK payload for wrapping: {"sign_sk": b64, "enc_sk": b64}
+        val combined = org.json.JSONObject().apply {
+            put("sign_sk", signingSkB64)
+            put("enc_sk", encryptionSkB64)
+        }.toString().toByteArray(Charsets.UTF_8)
+
+        status.text = "Scellement dans le TEE…"; status.setTextColor(FG3)
+
+        BiometricHelper.wrapKey(this,
+            promptTitle = "Sceller votre identité",
+            promptSubtitle = "Posez votre doigt pour protéger vos clés",
+            plaintext = combined,
+            onSuccess = { blob ->
+                Arrays.fill(combined, 0)
+                Arrays.fill(signingSk, 0)
+                prefs().edit().apply {
+                    putString("signing_pk", signingPk)
+                    putString("encryption_pk", encryptionPk)
+                    putString("markers", markersJson)
+                    putString("signing_sk_blob", android.util.Base64.encodeToString(blob, android.util.Base64.NO_WRAP))
+                    putString("signed_kit_json", signedKitJson)
+                }.apply()
+                isSetupDone = true
+                status.text = "Identité créée ✓"; status.setTextColor(GREEN)
+                val reasonForSuccess = setupReason
+                setupReason = SetupReason.FIRST_TIME
+                container.postDelayed({
+                    if (reasonForSuccess == SetupReason.FIRST_TIME) showScreen(Screen.HOME)
+                    else showPostSetupSuccess()
+                }, 900)
+            },
+            onError = { msg ->
+                Arrays.fill(combined, 0); Arrays.fill(signingSk, 0)
+                status.text = "Erreur : $msg"; status.setTextColor(RED)
+            },
+            onInvalidated = {
+                // Extremely unlikely at this point (we just created the key), but handle defensively.
+                Arrays.fill(combined, 0); Arrays.fill(signingSk, 0)
+                status.text = "Clé invalidée — réessayez"; status.setTextColor(RED)
+                handleKeyInvalidated()
+            },
+        )
+    }
+
+    private fun showPostSetupSuccess() {
+        currentScreen = Screen.HOME
+        container.removeAllViews()
+        val root = screenRoot()
+        root.addView(accentBar(GOLD))
+        root.addView(topBar("Sésame", GOLD, badge("Nouvelle identité", GREEN_L, GREEN)))
+
+        val body = bodyPad()
+        body.addView(spacer(16))
+        body.addView(eyebrow("Identité prête"))
+        body.addView(titleSerif("Votre nouvelle\nidentité est prête", GOLD))
+        body.addView(sub("Vos contacts doivent mettre à jour votre clé Sésame pour pouvoir vous envoyer des documents."))
+        body.addView(spacer(12))
+        body.addView(guideText("Le bouton ci-dessous ouvre votre application mail avec votre nouvelle clé en pièce jointe. Choisissez vos destinataires dans le carnet d'adresses de votre mail."))
+        body.addView(spacer(14))
+
+        body.addView(cta("Notifier tous mes contacts", GOLD) { notifyAllContacts() })
+        body.addView(spacer(8))
+        body.addView(ctaOutline("Plus tard") { showScreen(Screen.HOME) })
+
+        root.addView(body)
+        container.addView(scroll(root))
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -393,12 +593,15 @@ class MainActivity : FragmentActivity() {
 
         body.addView(bioZoneFull(PURPLE_L, purpleBorder(), PURPLE, "Déchiffrer le document", false) {
             status.text = "Authentification…"; status.setTextColor(FG3)
-            BiometricHelper.authenticate(this, "Déchiffrer le document", "Confirmez votre identité",
-                onSuccess = { _ ->
+            val blobB64 = prefs().getString("signing_sk_blob", "") ?: ""
+            val blob = android.util.Base64.decode(blobB64, android.util.Base64.DEFAULT)
+            BiometricHelper.unwrapKey(this, "Déchiffrer le document", "Confirmez votre identité", blob,
+                onSuccess = { combined ->
                     status.text = "Déchiffrement en cours…"; status.setTextColor(FG3)
+                    var encSk: ByteArray? = null
                     try {
-                        val encSkB64 = prefs().getString("encryption_sk", "") ?: ""
-                        val encSk = android.util.Base64.decode(encSkB64, android.util.Base64.DEFAULT)
+                        val pair = org.json.JSONObject(String(combined, Charsets.UTF_8))
+                        encSk = android.util.Base64.decode(pair.getString("enc_sk"), android.util.Base64.DEFAULT)
                         val result = AuthentixCore.decrypt(encSk, pendingPayloadJson!!)
                         if (result.startsWith("ERROR:")) {
                             status.text = result.removePrefix("ERROR:"); status.setTextColor(RED)
@@ -409,9 +612,13 @@ class MainActivity : FragmentActivity() {
                         }
                     } catch (e: Exception) {
                         status.text = "Erreur : ${e.message}"; status.setTextColor(RED)
+                    } finally {
+                        encSk?.let { Arrays.fill(it, 0) }
+                        Arrays.fill(combined, 0)
                     }
                 },
-                onError = { msg -> status.text = "Erreur : $msg"; status.setTextColor(RED) })
+                onError = { msg -> status.text = "Erreur : $msg"; status.setTextColor(RED) },
+                onInvalidated = { handleKeyInvalidated() })
         })
         body.addView(spacer(8))
         body.addView(ctaOutline("Annuler") { pendingPayloadJson = null; showScreen(Screen.HOME) })
@@ -525,13 +732,17 @@ class MainActivity : FragmentActivity() {
 
         body.addView(bioZoneFull(PURPLE_I, purpleBorderIntense(), PURPLE, "Maintenir l'empreinte", true) {
             status.text = "Authentification…"; status.setTextColor(FG3)
-            BiometricHelper.authenticate(this, "Signature définitive", "Maintenez votre empreinte",
-                onSuccess = { bio ->
+            val blobB64 = prefs().getString("signing_sk_blob", "") ?: ""
+            val blob = android.util.Base64.decode(blobB64, android.util.Base64.DEFAULT)
+            BiometricHelper.unwrapKey(this, "Signature définitive", "Maintenez votre empreinte", blob,
+                onSuccess = { combined ->
                     status.text = "Signature en cours…"; status.setTextColor(FG3)
+                    var sk: ByteArray? = null
+                    val bio = ByteArray(32).also { SecureRandom().nextBytes(it) }
                     try {
                         val pdf = decryptedPdfBytes ?: throw Exception("PDF non déchiffré")
-                        val skB64 = prefs().getString("signing_sk", "") ?: ""
-                        val sk = android.util.Base64.decode(skB64, android.util.Base64.DEFAULT)
+                        val pair = org.json.JSONObject(String(combined, Charsets.UTF_8))
+                        sk = android.util.Base64.decode(pair.getString("sign_sk"), android.util.Base64.DEFAULT)
                         val markersJson = prefs().getString("markers", "{}") ?: "{}"
                         val aid = android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: ""
                         val deviceIds = (aid + Build.FINGERPRINT).toByteArray()
@@ -552,9 +763,14 @@ class MainActivity : FragmentActivity() {
                         }
                     } catch (e: Exception) {
                         status.text = "Erreur : ${e.message}"; status.setTextColor(RED)
+                    } finally {
+                        sk?.let { Arrays.fill(it, 0) }
+                        Arrays.fill(bio, 0)
+                        Arrays.fill(combined, 0)
                     }
                 },
-                onError = { msg -> status.text = "Erreur : $msg"; status.setTextColor(RED) })
+                onError = { msg -> status.text = "Erreur : $msg"; status.setTextColor(RED) },
+                onInvalidated = { handleKeyInvalidated() })
         })
         body.addView(spacer(10))
 
@@ -707,12 +923,15 @@ class MainActivity : FragmentActivity() {
         val recipientEncPk = recipient.getString("encryption_pk")
         val recipientName = recipient.optString("name", "Destinataire")
 
-        BiometricHelper.authenticate(this, "Signer et chiffrer", "Confirmez l'envoi avec votre empreinte",
-            onSuccess = { bio ->
+        val blobB64 = prefs().getString("signing_sk_blob", "") ?: ""
+        val blob = android.util.Base64.decode(blobB64, android.util.Base64.DEFAULT)
+        BiometricHelper.unwrapKey(this, "Signer et chiffrer", "Confirmez l'envoi avec votre empreinte", blob,
+            onSuccess = { combined ->
+                var sk: ByteArray? = null
+                val bio = ByteArray(32).also { SecureRandom().nextBytes(it) }
                 try {
-                    // 1. Sign the document
-                    val skB64 = prefs().getString("signing_sk", "") ?: ""
-                    val sk = android.util.Base64.decode(skB64, android.util.Base64.DEFAULT)
+                    val pair = org.json.JSONObject(String(combined, Charsets.UTF_8))
+                    sk = android.util.Base64.decode(pair.getString("sign_sk"), android.util.Base64.DEFAULT)
                     val markersJson = prefs().getString("markers", "{}") ?: "{}"
                     val aid = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: ""
                     val deviceIds = (aid + Build.FINGERPRINT).toByteArray()
@@ -723,17 +942,15 @@ class MainActivity : FragmentActivity() {
                     val attJson = AuthentixCore.signDocument(sk, pdf, bio, deviceIds, tau, markersJson, docRef, myPk)
                     if (attJson.contains("\"error\"")) {
                         Toast.makeText(this, "Erreur signature : $attJson", Toast.LENGTH_LONG).show()
-                        return@authenticate
+                        return@unwrapKey
                     }
 
-                    // 2. Encrypt for recipient
                     val payloadJson = AuthentixCore.encryptFor(recipientEncPk, pdf)
                     if (payloadJson.contains("\"error\"")) {
                         Toast.makeText(this, "Erreur chiffrement : $payloadJson", Toast.LENGTH_LONG).show()
-                        return@authenticate
+                        return@unwrapKey
                     }
 
-                    // 3. Build .sesame envelope
                     val envelope = org.json.JSONObject().apply {
                         put("version", 2)
                         put("type", "document")
@@ -751,7 +968,6 @@ class MainActivity : FragmentActivity() {
                         put("subject", selectedPdfName)
                     }
 
-                    // 4. Write .sesame file and send via email
                     val file = java.io.File(cacheDir, "$docRef.sesame")
                     file.writeText(envelope.toString())
                     val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
@@ -764,14 +980,18 @@ class MainActivity : FragmentActivity() {
                     }
                     startActivity(Intent.createChooser(intent, "Envoyer le document chiffré"))
 
-                    // 5. Reset send state
                     selectedPdfBytes = null; selectedPdfName = ""; selectedRecipient = null
                     Toast.makeText(this, "✓ Document chiffré et envoyé (τ=$tau)", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
                     Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+                } finally {
+                    sk?.let { Arrays.fill(it, 0) }
+                    Arrays.fill(bio, 0)
+                    Arrays.fill(combined, 0)
                 }
             },
-            onError = { msg -> Toast.makeText(this, "Erreur bio : $msg", Toast.LENGTH_LONG).show() }
+            onError = { msg -> Toast.makeText(this, "Erreur bio : $msg", Toast.LENGTH_LONG).show() },
+            onInvalidated = { handleKeyInvalidated() }
         )
     }
 
@@ -812,20 +1032,35 @@ class MainActivity : FragmentActivity() {
         } else {
             for (i in 0 until contacts.length()) {
                 val c = contacts.getJSONObject(i)
+                val isObsolete = c.optBoolean("obsolete", false)
                 val contactCard = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
-                    background = GradientDrawable().apply { setColor(PURPLE_L); setStroke(dp(1), purpleBorder()); cornerRadius = dp(4).toFloat() }
+                    background = GradientDrawable().apply {
+                        setColor(if (isObsolete) Color.parseColor("#fff6e0") else PURPLE_L)
+                        setStroke(dp(1), if (isObsolete) Color.parseColor("#b88a20") else purpleBorder())
+                        cornerRadius = dp(4).toFloat()
+                    }
                     layoutParams = lp().apply { bottomMargin = dp(8) }
-                    isClickable = true; isFocusable = true
-                    setOnClickListener {
+                    isClickable = !isObsolete; isFocusable = !isObsolete
+                    if (!isObsolete) setOnClickListener {
                         selectedRecipient = c
                         Toast.makeText(this@MainActivity, "Destinataire : ${c.getString("name")}", Toast.LENGTH_SHORT).show()
                         showScreen(Screen.SEND)
                     }
                 }
-                contactCard.addView(certRow("✅ ${c.getString("name")}", c.optString("device", "—"), PURPLE))
-                contactCard.addView(certRow("ID", c.optString("id_short", "—"), PURPLE))
-                contactCard.addView(certRow("Clé Sésame", trunc(c.getString("encryption_pk")), PURPLE))
+                val headerLabel = if (isObsolete) "⚠️ ${c.getString("name")}" else "✅ ${c.getString("name")}"
+                val headerColor = if (isObsolete) Color.parseColor("#b88a20") else PURPLE
+                contactCard.addView(certRow(headerLabel, c.optString("device", "—"), headerColor))
+                if (isObsolete) {
+                    contactCard.addView(TextView(this).apply {
+                        text = "Clé obsolète — demandez à ce contact de renvoyer son kit Sésame"
+                        typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+                        setTextColor(Color.parseColor("#b88a20"))
+                        layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(4) }
+                    })
+                }
+                contactCard.addView(certRow("ID", c.optString("id_short", "—"), headerColor))
+                contactCard.addView(certRow("Clé Sésame", trunc(c.getString("encryption_pk")), headerColor))
                 body.addView(contactCard)
             }
         }
@@ -884,11 +1119,9 @@ class MainActivity : FragmentActivity() {
 
         val spk = prefs().getString("signing_pk", "") ?: ""
         val epk = prefs().getString("encryption_pk", "") ?: ""
-        val markersJson = prefs().getString("markers", "{}") ?: "{}"
-        val skB64 = prefs().getString("signing_sk", "") ?: ""
 
-        // QR code (contains the kit JSON)
-        val kitJson = buildKitJson(spk, epk, markersJson, skB64)
+        // Kit was signed at setup time and cached — no bio prompt needed to display it.
+        val kitJson = prefs().getString("signed_kit_json", "") ?: fallbackUnsignedKit(spk, epk)
         val qrBitmap = generateQr(kitJson)
 
         if (qrBitmap != null) {
@@ -931,22 +1164,19 @@ class MainActivity : FragmentActivity() {
         body.addView(cta("Partager par email", GOLD) { shareKit(kitJson) })
         body.addView(spacer(8))
         body.addView(ctaOutline("Exporter .sesame-id") { exportKit(kitJson) })
+        body.addView(spacer(8))
+        body.addView(ctaOutline("Notifier mes contacts d'un changement") { notifyAllContacts() })
 
         root.addView(body)
         return root
     }
 
-    private fun buildKitJson(spk: String, epk: String, markersJson: String, skB64: String): String {
-        return try {
-            val sk = android.util.Base64.decode(skB64, android.util.Base64.DEFAULT)
-            AuthentixCore.buildKit(spk, epk, sk, markersJson, Build.MANUFACTURER + " " + Build.MODEL, "")
-        } catch (e: Exception) {
-            org.json.JSONObject().apply {
-                put("signing_pk", spk)
-                put("encryption_pk", epk)
-                put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
-            }.toString()
-        }
+    private fun fallbackUnsignedKit(spk: String, epk: String): String {
+        return org.json.JSONObject().apply {
+            put("signing_pk", spk)
+            put("encryption_pk", epk)
+            put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
+        }.toString()
     }
 
     private fun generateQr(data: String): android.graphics.Bitmap? {
