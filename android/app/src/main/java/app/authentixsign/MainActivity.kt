@@ -99,6 +99,11 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private val receiveSesameLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        handleIntent(Intent().apply { data = uri; type = "application/x-sesame" })
+    }
+
     private val pickPdfLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@registerForActivityResult
         try {
@@ -519,14 +524,21 @@ class MainActivity : FragmentActivity() {
 
     private fun showScreen(s: Screen) {
         currentScreen = s; container.removeAllViews()
+        // HOME is a fixed-layout dashboard (no scroll) so bottom settings can anchor.
+        if (s == Screen.HOME) {
+            container.addView(buildHome().apply {
+                layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            })
+            return
+        }
         container.addView(scroll(when (s) {
-            Screen.HOME     -> buildHome()
             Screen.RECEIVE  -> buildReceive()
             Screen.READ     -> buildRead()
             Screen.SIGN     -> buildSign()
             Screen.SEND     -> buildSend()
             Screen.CONTACTS -> buildContacts()
             Screen.MY_ID    -> buildMyId()
+            Screen.HOME     -> buildHome() // unreachable; exhaustiveness only
         }))
     }
 
@@ -535,35 +547,53 @@ class MainActivity : FragmentActivity() {
     // ════════════════════════════════════════════════════════════════════
 
     private fun buildHome(): LinearLayout {
-        val root = screenRoot()
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(BG)
+            layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+        }
         root.addView(accentBar(PURPLE))
         root.addView(topBar("Sésame", PURPLE, badge("v1.0", PURPLE_L, PURPLE)))
 
-        val body = bodyPad()
-        body.addView(eyebrow("Prêt à signer"))
-        body.addView(titleSerif("Accueil", PURPLE))
-        body.addView(sub("Sésame vous permet de recevoir, lire et signer des documents de façon sécurisée — tout se passe sur votre téléphone, sans serveur."))
-        body.addView(spacer(6))
-        body.addView(guideText("Scannez un QR code pour ouvrir un document, ou utilisez les boutons ci-dessous pour envoyer, gérer vos contacts ou partager votre identité."))
-        body.addView(spacer(14))
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
+        }
 
-        // QR zone
-        body.addView(qrZone())
-        body.addView(spacer(14))
-
-        body.addView(cta("Ouvrir l'appareil photo", PURPLE) {
-            launchQrScanner()
+        // ── Zone principale : 3 boutons d'action ────────────────────────
+        body.addView(cta("Envoyer", PURPLE) { showScreen(Screen.SEND) })
+        body.addView(spacer(12))
+        body.addView(cta("Recevoir", PURPLE) {
+            receiveSesameLauncher.launch(arrayOf("*/*"))
         })
+        body.addView(spacer(12))
+        body.addView(disabledCta("Co-signer", "À venir"))
+
+        // Flex spacer pushes settings zone to the bottom of the screen.
+        body.addView(View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
+        })
+
+        // ── Zone réglages ───────────────────────────────────────────────
+        body.addView(ctaOutline("Mes contacts") { showScreen(Screen.CONTACTS) })
         body.addView(spacer(8))
-        body.addView(ctaOutline("Envoyer un document") { showScreen(Screen.SEND) })
-        body.addView(spacer(8))
-        body.addView(ctaOutline("Contacts") { showScreen(Screen.CONTACTS) })
-        body.addView(spacer(8))
-        body.addView(cta("Mon identité / Mon QR", GOLD) { showScreen(Screen.MY_ID) })
+        body.addView(ctaOutline("Mon identité") { showScreen(Screen.MY_ID) })
 
         root.addView(body)
-        root.addView(dots(1, 5, PURPLE))
         return root
+    }
+
+    /** Non-interactive CTA styled like `cta` but grayed with a trailing label. */
+    private fun disabledCta(label: String, pendingLabel: String) = Button(this).apply {
+        text = "${label.uppercase()}   ·   ${pendingLabel.uppercase()}"
+        typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f); setTextColor(FG3)
+        letterSpacing = 0.1f; isAllCaps = false; stateListAnimator = null; elevation = 0f
+        setPadding(dp(12), dp(12), dp(12), dp(12))
+        setBackgroundColor(Color.parseColor("#d8d6cf"))
+        alpha = 0.6f
+        isEnabled = false
+        layoutParams = lp()
     }
 
     // ════════════════════════════════════════════════════════════════════
