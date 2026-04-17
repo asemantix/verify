@@ -27,7 +27,9 @@ import java.util.Arrays
 
 class MainActivity : FragmentActivity() {
 
-    private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND, CONTACTS, MY_ID }
+    private enum class Screen { HOME, RECEIVE, READ, SIGN, SEND_DOC, SEND_RECIPIENT, CONTACTS, MY_ID }
+    private var onTransportScreen = false
+    private var onQrFullscreen = false
     private enum class SetupReason { FIRST_TIME, INVALIDATED, LEGACY_RESET, USER_RESET }
     private var setupReason: SetupReason = SetupReason.FIRST_TIME
 
@@ -97,7 +99,7 @@ class MainActivity : FragmentActivity() {
             } else {
                 Toast.makeText(this, "❌ Clé Sésame non vérifiée — fichier corrompu ou falsifié", Toast.LENGTH_LONG).show()
             }
-            showScreen(Screen.CONTACTS)
+            showScreen(if (selectedPdfBytes != null) Screen.SEND_RECIPIENT else Screen.HOME)
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur import : ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -114,7 +116,7 @@ class MainActivity : FragmentActivity() {
             selectedPdfBytes = contentResolver.openInputStream(uri)?.readBytes()
             selectedPdfName = uri.lastPathSegment ?: "document.pdf"
             Toast.makeText(this, "PDF sélectionné : ${selectedPdfBytes!!.size} octets", Toast.LENGTH_SHORT).show()
-            showScreen(Screen.SEND)
+            showScreen(Screen.SEND_DOC)
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -139,7 +141,7 @@ class MainActivity : FragmentActivity() {
             } else {
                 Toast.makeText(this, "❌ Clé Sésame non vérifiée — QR corrompu ou falsifié", Toast.LENGTH_LONG).show()
             }
-            showScreen(Screen.CONTACTS)
+            showScreen(if (selectedPdfBytes != null) Screen.SEND_RECIPIENT else Screen.HOME)
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur QR : ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -300,7 +302,7 @@ class MainActivity : FragmentActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this, "Erreur import : ${e.message}", Toast.LENGTH_LONG).show()
                 }
-                showScreen(Screen.CONTACTS)
+                showScreen(if (selectedPdfBytes != null) Screen.SEND_RECIPIENT else Screen.HOME)
             }
         }
     }
@@ -539,6 +541,8 @@ class MainActivity : FragmentActivity() {
     /** Picks "Boîte secrète" vs "Boîte mail" for one flow. No persistence —
      *  the choice lives only for the duration of the current Send or Receive action. */
     private fun showTransportScreen(action: TransportAction) {
+        onTransportScreen = true
+        onQrFullscreen = false
         container.removeAllViews()
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
@@ -584,7 +588,7 @@ class MainActivity : FragmentActivity() {
             when (action) {
                 TransportAction.SEND -> {
                     pendingSendTransport = pick
-                    showScreen(Screen.SEND)
+                    showScreen(Screen.SEND_DOC)
                 }
                 TransportAction.RECEIVE -> when (pick) {
                     "mail" -> receiveSesameLauncher.launch(arrayOf("*/*"))
@@ -674,6 +678,8 @@ class MainActivity : FragmentActivity() {
         val bmp = generateQr(kitJson) ?: run {
             Toast.makeText(this, "Erreur QR", Toast.LENGTH_SHORT).show(); return
         }
+        onQrFullscreen = true
+        onTransportScreen = false
         container.removeAllViews()
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -715,7 +721,10 @@ class MainActivity : FragmentActivity() {
     // ════════════════════════════════════════════════════════════════════
 
     private fun showScreen(s: Screen) {
-        currentScreen = s; container.removeAllViews()
+        currentScreen = s
+        onTransportScreen = false
+        onQrFullscreen = false
+        container.removeAllViews()
         // HOME is a fixed-layout dashboard (no scroll) so bottom settings can anchor.
         if (s == Screen.HOME) {
             container.addView(buildHome().apply {
@@ -724,13 +733,14 @@ class MainActivity : FragmentActivity() {
             return
         }
         container.addView(scroll(when (s) {
-            Screen.RECEIVE  -> buildReceive()
-            Screen.READ     -> buildRead()
-            Screen.SIGN     -> buildSign()
-            Screen.SEND     -> buildSend()
-            Screen.CONTACTS -> buildContacts()
-            Screen.MY_ID    -> buildMyId()
-            Screen.HOME     -> buildHome() // unreachable; exhaustiveness only
+            Screen.RECEIVE         -> buildReceive()
+            Screen.READ            -> buildRead()
+            Screen.SIGN            -> buildSign()
+            Screen.SEND_DOC        -> buildSendDoc()
+            Screen.SEND_RECIPIENT  -> buildSendRecipient()
+            Screen.CONTACTS        -> buildContacts()
+            Screen.MY_ID           -> buildMyId()
+            Screen.HOME            -> buildHome() // unreachable; exhaustiveness only
         }))
     }
 
@@ -1156,69 +1166,89 @@ class MainActivity : FragmentActivity() {
     //  6. SEND — Envoyer un document
     // ════════════════════════════════════════════════════════════════════
 
-    private fun buildSend(): LinearLayout {
+    /** Screen A — select the PDF document to send. */
+    private fun buildSendDoc(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Sésame", PURPLE, stepLabel("Envoi")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 1/2")))
 
         val body = bodyPad()
         body.addView(backLink { showScreen(Screen.HOME) })
-        body.addView(eyebrow("Nouveau document"))
-        body.addView(titleSerif("Envoyer", PURPLE))
-        body.addView(sub("Envoyez un document à signer de façon sécurisée."))
-        body.addView(guideText("① Choisissez un fichier PDF\n② Sélectionnez le destinataire dans vos contacts\n③ Appuyez sur Envoyer — le document sera chiffré pour le téléphone du destinataire uniquement"))
-        body.addView(spacer(18))
+        body.addView(titleSerif("Sélectionnez\nle document", PURPLE))
+        body.addView(spacer(14))
 
-        // Pre-PDF explainer (écran 2b) — mono 11sp, FG3 (#6a6860)
-        body.addView(monoNote(
-            "Sélectionnez le fichier. Il ne sera envoyé qu'une fois chiffré — personne d'autre que votre destinataire ne pourra le lire. Il ne s'ouvrira pas sur sa boîte mail, pas sur son ordinateur, pas sur un autre téléphone. Uniquement sur son téléphone, avec son empreinte digitale."
-        ))
-
-        // PDF picker card — show selected state
         val pdfLabel = if (selectedPdfBytes != null) "✓ ${selectedPdfName} (${selectedPdfBytes!!.size} octets)" else "Sélectionnez un fichier PDF"
         body.addView(pickerCard("📄", pdfLabel, "Parcourir") {
             pickPdfLauncher.launch(arrayOf("application/pdf"))
         })
-        body.addView(spacer(10))
+        body.addView(spacer(18))
 
-        // Recipient card — show selected state
-        val recipientLabel = if (selectedRecipient != null) "✓ ${selectedRecipient!!.optString("name", "?")} — ${selectedRecipient!!.optString("device", "")}" else "Choisir un destinataire"
-        body.addView(pickerCard("👤", recipientLabel, "Contacts") {
-            showScreen(Screen.CONTACTS)
-        })
-        body.addView(spacer(10))
+        val continueBtn = ctaTall("Continuer", PURPLE) { showScreen(Screen.SEND_RECIPIENT) }
+        if (selectedPdfBytes == null) { continueBtn.alpha = 0.4f; continueBtn.isEnabled = false }
+        body.addView(continueBtn)
 
-        // Ref / subject
-        body.addView(fieldCard("Référence", "Ex: VENTE-2026-042"))
-        body.addView(spacer(10))
-        body.addView(fieldCard("Objet", "Ex: Compromis de vente"))
-        body.addView(spacer(24))
+        root.addView(body)
+        return root
+    }
 
-        val sendReady = selectedPdfBytes != null && selectedRecipient != null
+    /** Screen B — pick a recipient (or add a new contact). Tapping a verified contact triggers the send flow. */
+    private fun buildSendRecipient(): LinearLayout {
+        val root = screenRoot()
+        root.addView(accentBar(PURPLE))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 2/2")))
 
-        // Écran 2c — Confirmation with device markers (shown when both PDF + recipient are selected)
-        if (sendReady) {
-            val r = selectedRecipient!!
-            val recipientName = r.optString("name", "Destinataire")
-            val device = r.optString("device", "")
-            val model = extractModel(device, r.optString("markers", "{}"))
-            val short4 = shortIdSuffix(r.optString("id_short", ""), r.optString("encryption_pk", ""))
-            body.addView(sesameInfoBlock(
-                "Seul le $model ...$short4 de $recipientName peut ouvrir ce document. Même sur sa boîte mail, même sur un autre téléphone — illisible."
-            ))
-            body.addView(spacer(8))
+        val body = bodyPad()
+        body.addView(backLink { showScreen(Screen.SEND_DOC) })
+        body.addView(titleSerif("Choisissez\nle destinataire", PURPLE))
+        body.addView(spacer(14))
+
+        val contacts = loadContacts()
+        if (contacts.length() == 0) {
+            val emptyCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+                setPadding(dp(16), dp(24), dp(16), dp(24))
+                background = card_bg()
+                layoutParams = lp().apply { bottomMargin = dp(14) }
+            }
+            emptyCard.addView(TextView(this).apply {
+                text = "Aucun contact pour l'instant"
+                typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG4); gravity = Gravity.CENTER
+            })
+            body.addView(emptyCard)
+        } else {
+            for (i in 0 until contacts.length()) {
+                val c = contacts.getJSONObject(i)
+                val isObsolete = c.optBoolean("obsolete", false)
+                val card = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
+                    background = GradientDrawable().apply {
+                        setColor(if (isObsolete) Color.parseColor("#fff6e0") else PURPLE_L)
+                        setStroke(dp(1), if (isObsolete) Color.parseColor("#b88a20") else purpleBorder())
+                        cornerRadius = dp(4).toFloat()
+                    }
+                    layoutParams = lp().apply { bottomMargin = dp(8) }
+                    isClickable = !isObsolete; isFocusable = !isObsolete
+                    if (!isObsolete) setOnClickListener {
+                        selectedRecipient = c
+                        doEncryptAndSend()
+                    }
+                }
+                val headerLabel = if (isObsolete) "⚠️ ${c.getString("name")}" else "✅ ${c.getString("name")}"
+                val headerColor = if (isObsolete) Color.parseColor("#b88a20") else PURPLE
+                card.addView(certRow(headerLabel, c.optString("device", "—"), headerColor))
+                if (isObsolete) {
+                    card.addView(TextView(this).apply {
+                        text = "Clé obsolète — demandez à ce contact de renvoyer son kit Sésame"
+                        typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(Color.parseColor("#b88a20"))
+                        layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(4) }
+                    })
+                }
+                card.addView(certRow("ID", c.optString("id_short", "—"), headerColor))
+                body.addView(card)
+            }
         }
-
-        val sendBtn = cta("Chiffrer et envoyer par email", PURPLE) {
-            doEncryptAndSend()
-        }
-        if (!sendReady) { sendBtn.alpha = 0.4f; sendBtn.isEnabled = false }
-        body.addView(sendBtn)
-
-        if (!sendReady) {
-            body.addView(spacer(8))
-            body.addView(sub("Sélectionnez un PDF et un destinataire pour activer l'envoi.").apply { gravity = Gravity.CENTER; setTextColor(FG4) })
-        }
+        body.addView(spacer(8))
+        body.addView(ctaOutline("+ Ajouter un contact") { showScreen(Screen.CONTACTS) })
 
         root.addView(body)
         return root
@@ -1312,104 +1342,20 @@ class MainActivity : FragmentActivity() {
         root.addView(topBar("Sésame", PURPLE, stepLabel("Contacts")))
 
         val body = bodyPad()
-        body.addView(backLink { showScreen(Screen.HOME) })
+        body.addView(backLink { showScreen(parentOfContacts()) })
         body.addView(eyebrow("Carnet"))
-        body.addView(titleSerif("Contacts", PURPLE))
-        body.addView(sub("Vos contacts sont les personnes à qui vous pouvez envoyer des documents chiffrés."))
-        body.addView(guideText("Pour ajouter un contact, scannez son QR code (en face à face) ou ouvrez le fichier .sesame-id qu'il vous a envoyé. Chaque contact est lié à un appareil précis."))
-        body.addView(spacer(18))
+        body.addView(titleSerif("Ajouter\nun contact", PURPLE))
+        body.addView(spacer(14))
 
-        // Contact list
-        val contacts = loadContacts()
-        if (contacts.length() == 0) {
-            val emptyCard = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
-                setPadding(dp(16), dp(32), dp(16), dp(32))
-                background = card_bg()
-                layoutParams = lp().apply { bottomMargin = dp(14) }
-            }
-            emptyCard.addView(TextView(this).apply {
-                text = "Aucun contact"; typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG4); gravity = Gravity.CENTER
-            })
-            emptyCard.addView(spacer(4))
-            emptyCard.addView(TextView(this).apply {
-                text = "Scannez un QR ou ouvrez un .sesame-id"; typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(FG4); gravity = Gravity.CENTER
-            })
-            body.addView(emptyCard)
-        } else {
-            for (i in 0 until contacts.length()) {
-                val c = contacts.getJSONObject(i)
-                val isObsolete = c.optBoolean("obsolete", false)
-                val contactCard = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
-                    background = GradientDrawable().apply {
-                        setColor(if (isObsolete) Color.parseColor("#fff6e0") else PURPLE_L)
-                        setStroke(dp(1), if (isObsolete) Color.parseColor("#b88a20") else purpleBorder())
-                        cornerRadius = dp(4).toFloat()
-                    }
-                    layoutParams = lp().apply { bottomMargin = dp(8) }
-                    isClickable = !isObsolete; isFocusable = !isObsolete
-                    if (!isObsolete) setOnClickListener {
-                        selectedRecipient = c
-                        Toast.makeText(this@MainActivity, "Destinataire : ${c.getString("name")}", Toast.LENGTH_SHORT).show()
-                        showScreen(Screen.SEND)
-                    }
-                }
-                val headerLabel = if (isObsolete) "⚠️ ${c.getString("name")}" else "✅ ${c.getString("name")}"
-                val headerColor = if (isObsolete) Color.parseColor("#b88a20") else PURPLE
-                contactCard.addView(certRow(headerLabel, c.optString("device", "—"), headerColor))
-                if (isObsolete) {
-                    contactCard.addView(TextView(this).apply {
-                        text = "Clé obsolète — demandez à ce contact de renvoyer son kit Sésame"
-                        typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
-                        setTextColor(Color.parseColor("#b88a20"))
-                        layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(4) }
-                    })
-                }
-                contactCard.addView(certRow("ID", c.optString("id_short", "—"), headerColor))
-                contactCard.addView(certRow("Clé Sésame", trunc(c.getString("encryption_pk")), headerColor))
-                body.addView(contactCard)
-            }
-        }
-        body.addView(spacer(10))
-
-        // ⓘ Clé Sésame — explanatory block (écran 2a)
-        body.addView(eyebrow("ⓘ Clé Sésame"))
-        body.addView(spacer(6))
+        // The "Clé Sésame" explainer still lives here — it answers what the user is about to add.
         body.addView(sesameInfoBlock(
             "C'est la fusion unique et inséparable de trois éléments : l'identité Sésame de votre destinataire, son téléphone physique, et son empreinte digitale. Les trois doivent être réunis pour ouvrir le document. Voler un seul élément ne suffit pas."
         ))
-        body.addView(spacer(14))
+        body.addView(spacer(18))
 
-        body.addView(cta("Scanner un QR code", PURPLE) {
-            launchQrScanner()
-        })
+        body.addView(cta("Scanner un QR code", PURPLE) { launchQrScanner() })
         body.addView(spacer(8))
-        body.addView(ctaOutline("Ouvrir un .sesame-id") {
-            importKitLauncher.launch(arrayOf("*/*"))
-        })
-        body.addView(spacer(32))
-
-        // My identity section
-        body.addView(eyebrow("Mon identité"))
-        body.addView(spacer(10))
-
-        val idCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = GradientDrawable().apply { setColor(GOLD_L); setStroke(dp(1), goldBorder()); cornerRadius = dp(4).toFloat() }
-            layoutParams = lp().apply { bottomMargin = dp(14) }
-        }
-        val pk = prefs().getString("signing_pk", "—") ?: "—"
-        val epk = prefs().getString("encryption_pk", "—") ?: "—"
-        idCard.addView(certRow("Appareil", "${Build.MANUFACTURER} ${Build.MODEL}", GOLD))
-        idCard.addView(certRow("Clé signature", trunc(pk), GOLD))
-        idCard.addView(certRow("Clé chiffrement", trunc(epk), GOLD))
-        idCard.addView(certRow("Compteur τ", MonotonicCounter.peek(this).toString(), GOLD))
-        body.addView(idCard)
-
-        body.addView(cta("Partager mon QR code", GOLD) {
-            showScreen(Screen.MY_ID)
-        })
+        body.addView(ctaOutline("Ouvrir un .sesame-id") { importKitLauncher.launch(arrayOf("*/*")) })
 
         root.addView(body)
         return root
@@ -1949,14 +1895,33 @@ class MainActivity : FragmentActivity() {
         return if (alnum.length >= 4) alnum.takeLast(4) else alnum.ifEmpty { "????" }
     }
 
+    /** Logical parent of each Screen — the destination for hardware back and backLink. */
+    private fun parentOf(s: Screen): Screen = when (s) {
+        Screen.HOME            -> Screen.HOME
+        Screen.RECEIVE         -> Screen.HOME
+        Screen.READ            -> Screen.HOME
+        Screen.SIGN            -> Screen.READ
+        Screen.SEND_DOC        -> Screen.HOME
+        Screen.SEND_RECIPIENT  -> Screen.SEND_DOC
+        Screen.CONTACTS        -> parentOfContacts()
+        Screen.MY_ID           -> Screen.HOME
+    }
+
+    /** Contacts is reached from SEND_RECIPIENT (via + Ajouter) or directly from Home flows.
+     *  If a PDF is selected, we're in the Send flow → back goes to step B; otherwise Home. */
+    private fun parentOfContacts(): Screen =
+        if (selectedPdfBytes != null) Screen.SEND_RECIPIENT else Screen.HOME
+
     @Deprecated("Use onBackPressedDispatcher")
     override fun onBackPressed() {
-        when (currentScreen) {
-            Screen.READ  -> showScreen(Screen.RECEIVE)
-            Screen.SIGN  -> showScreen(Screen.READ)
-            Screen.MY_ID -> showScreen(Screen.HOME)
-            Screen.HOME  -> super.onBackPressed()
-            else         -> showScreen(Screen.HOME)
+        when {
+            onQrFullscreen -> {
+                window?.attributes = window?.attributes?.apply { screenBrightness = -1f }
+                showScreen(Screen.MY_ID)
+            }
+            onTransportScreen -> showScreen(Screen.HOME)
+            currentScreen == Screen.HOME -> super.onBackPressed()
+            else -> showScreen(parentOf(currentScreen))
         }
     }
 }
