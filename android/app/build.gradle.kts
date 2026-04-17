@@ -27,21 +27,23 @@ android {
     // The keystore path in RELEASE_STORE_FILE is resolved relative to the
     // project root (authentix-sign/), matching where keytool wrote it.
     signingConfigs {
-        create("release") {
-            val props = Properties().apply {
-                rootProject.file("local.properties").inputStream().use { load(it) }
+        val props = Properties().apply {
+            rootProject.file("local.properties").inputStream().use { load(it) }
+        }
+        if (props.containsKey("RELEASE_STORE_FILE")) {
+            create("release") {
+                storeFile = rootProject.file(props["RELEASE_STORE_FILE"] as String)
+                storePassword = props["RELEASE_STORE_PASSWORD"] as String
+                keyAlias = props["RELEASE_KEY_ALIAS"] as String
+                keyPassword = props["RELEASE_KEY_PASSWORD"] as String
             }
-            storeFile = rootProject.file(props["RELEASE_STORE_FILE"] as String)
-            storePassword = props["RELEASE_STORE_PASSWORD"] as String
-            keyAlias = props["RELEASE_KEY_ALIAS"] as String
-            keyPassword = props["RELEASE_KEY_PASSWORD"] as String
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = try { signingConfigs.getByName("release") } catch (_: Exception) { null }
         }
         debug {
             isDebuggable = true
