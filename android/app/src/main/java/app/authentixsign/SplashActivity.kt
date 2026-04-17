@@ -45,7 +45,7 @@ class SplashActivity : Activity() {
         })
 
         val title = TextView(this).apply {
-            text = "AUTHENTIX SIGN"
+            text = "Sésame"
             setTextColor(Color.parseColor("#6655c0"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
             typeface = Typeface.create("serif", Typeface.BOLD)

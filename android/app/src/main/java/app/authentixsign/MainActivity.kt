@@ -20,6 +20,7 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 
 class MainActivity : FragmentActivity() {
@@ -59,6 +60,63 @@ class MainActivity : FragmentActivity() {
     private var decryptedPdfBytes: ByteArray? = null
     private var lastAttestationJson: String? = null
 
+    // ── Send flow state ─────────────────────────────────────────────────
+    private var selectedPdfBytes: ByteArray? = null
+    private var selectedPdfName: String = ""
+    private var selectedRecipient: org.json.JSONObject? = null
+
+    // ── Activity result launchers ───────────────────────────────────────
+    private val importKitLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        try {
+            val bytes = contentResolver.openInputStream(uri)?.readBytes() ?: throw Exception("Impossible de lire le fichier")
+            val kitJson = String(bytes, Charsets.UTF_8)
+            val valid = AuthentixCore.verifyKit(kitJson)
+            if (valid == "true") {
+                val kit = org.json.JSONObject(kitJson)
+                val owner = kit.getJSONObject("owner")
+                val name = owner.getString("name")
+                val markers = owner.getJSONObject("markers")
+                val device = "${markers.getString("brand")} ${markers.getString("model")}"
+                val idShort = markers.getString("id_short")
+                saveContact(name, owner.getString("signing_pk"), owner.getString("encryption_pk"), markers.toString(), device, idShort)
+                Toast.makeText(this, "✅ Contact ajouté : $name — $device", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, "❌ Clé Sésame non vérifiée — fichier corrompu ou falsifié", Toast.LENGTH_LONG).show()
+            }
+            showScreen(Screen.CONTACTS)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur import : ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private val pickPdfLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        try {
+            selectedPdfBytes = contentResolver.openInputStream(uri)?.readBytes()
+            selectedPdfName = uri.lastPathSegment ?: "document.pdf"
+            Toast.makeText(this, "PDF sélectionné : ${selectedPdfBytes!!.size} octets", Toast.LENGTH_SHORT).show()
+            showScreen(Screen.SEND)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // ── Contact storage ─────────────────────────────────────────────────
+    private fun saveContact(name: String, signingPk: String, encryptionPk: String, markersJson: String, device: String, idShort: String) {
+        val contacts = loadContacts()
+        contacts.put(org.json.JSONObject().apply {
+            put("name", name); put("signing_pk", signingPk); put("encryption_pk", encryptionPk)
+            put("markers", markersJson); put("device", device); put("id_short", idShort)
+        })
+        prefs().edit().putString("contacts", contacts.toString()).apply()
+    }
+
+    private fun loadContacts(): org.json.JSONArray {
+        val raw = prefs().getString("contacts", "[]") ?: "[]"
+        return try { org.json.JSONArray(raw) } catch (_: Exception) { org.json.JSONArray() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         container = FrameLayout(this).apply {
@@ -79,7 +137,7 @@ class MainActivity : FragmentActivity() {
         val path = uri.path ?: uri.toString()
 
         when {
-            path.endsWith(".authentix") || intent.type == "application/x-authentix" -> {
+            path.endsWith(".sesame") || intent.type == "application/x-sesame" -> {
                 if (!isSetupDone) {
                     Toast.makeText(this, "Identité non créée — lancez l'app d'abord", Toast.LENGTH_LONG).show()
                     return
@@ -112,13 +170,45 @@ class MainActivity : FragmentActivity() {
                         return
                     }
 
+                    // Verify sender attestation if present (ML-DSA-65)
+                    val attestation = doc.optJSONObject("attestation")
+                    if (attestation != null) {
+                        val vr = AuthentixCore.verify(attestation.toString(), ByteArray(0))
+                        try {
+                            val vrJson = org.json.JSONObject(vr)
+                            if (vrJson.optBoolean("valid", false)) {
+                                pendingSenderName += " ✅"
+                            }
+                        } catch (_: Exception) {}
+                    }
+
                     showScreen(Screen.RECEIVE)
 
                 } catch (e: Exception) {
                     Toast.makeText(this, "Erreur lecture : ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
-            path.endsWith(".authentix-id") -> {
+            path.endsWith(".sesame-id") -> {
+                try {
+                    val bytes = contentResolver.openInputStream(uri)?.readBytes()
+                        ?: throw Exception("Impossible de lire le fichier")
+                    val kitJson = String(bytes, Charsets.UTF_8)
+                    val valid = AuthentixCore.verifyKit(kitJson)
+                    if (valid == "true") {
+                        val kit = org.json.JSONObject(kitJson)
+                        val owner = kit.getJSONObject("owner")
+                        val name = owner.getString("name")
+                        val markers = owner.getJSONObject("markers")
+                        val device = "${markers.getString("brand")} ${markers.getString("model")}"
+                        val idShort = markers.getString("id_short")
+                        saveContact(name, owner.getString("signing_pk"), owner.getString("encryption_pk"), markers.toString(), device, idShort)
+                        Toast.makeText(this, "✅ Identité vérifiée — $name ($device) ajouté", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "❌ Clé Sésame non vérifiée — fichier corrompu ou falsifié", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Erreur import : ${e.message}", Toast.LENGTH_LONG).show()
+                }
                 showScreen(Screen.CONTACTS)
             }
         }
@@ -206,12 +296,12 @@ class MainActivity : FragmentActivity() {
     private fun buildHome(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Authentix Sign", PURPLE, badge("v1.0", PURPLE_L, PURPLE)))
+        root.addView(topBar("Sésame", PURPLE, badge("v1.0", PURPLE_L, PURPLE)))
 
         val body = bodyPad()
         body.addView(eyebrow("Prêt à signer"))
         body.addView(titleSerif("Accueil", PURPLE))
-        body.addView(sub("Authentix Sign vous permet de recevoir, lire et signer des documents de façon sécurisée — tout se passe sur votre téléphone, sans serveur."))
+        body.addView(sub("Sésame vous permet de recevoir, lire et signer des documents de façon sécurisée — tout se passe sur votre téléphone, sans serveur."))
         body.addView(spacer(6))
         body.addView(guideText("Scannez un QR code pour ouvrir un document, ou utilisez les boutons ci-dessous pour envoyer, gérer vos contacts ou partager votre identité."))
         body.addView(spacer(14))
@@ -242,7 +332,7 @@ class MainActivity : FragmentActivity() {
     private fun buildReceive(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Authentix Sign", PURPLE, stepLabel("Étape 1/3")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 1/3")))
 
         val body = bodyPad()
         body.addView(eyebrow("Document reçu"))
@@ -302,7 +392,7 @@ class MainActivity : FragmentActivity() {
     private fun buildRead(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Authentix Sign", PURPLE, stepLabel("Étape 2/3")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 2/3")))
 
         val body = bodyPad()
         body.addView(eyebrow("Lecture obligatoire"))
@@ -385,7 +475,7 @@ class MainActivity : FragmentActivity() {
     private fun buildSign(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Authentix Sign", PURPLE, stepLabel("Étape 3/3")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 3/3")))
 
         val body = bodyPad()
         body.addView(eyebrow("Signature définitive"))
@@ -458,7 +548,7 @@ class MainActivity : FragmentActivity() {
         container.removeAllViews()
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Authentix Sign", PURPLE, badge("Signé", GREEN_L, GREEN)))
+        root.addView(topBar("Sésame", PURPLE, badge("Signé", GREEN_L, GREEN)))
 
         val body = bodyPad()
         body.addView(spacer(16))
@@ -529,24 +619,26 @@ class MainActivity : FragmentActivity() {
     private fun buildSend(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Authentix Sign", PURPLE, stepLabel("Envoi")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Envoi")))
 
         val body = bodyPad()
         body.addView(backLink { showScreen(Screen.HOME) })
         body.addView(eyebrow("Nouveau document"))
         body.addView(titleSerif("Envoyer", PURPLE))
         body.addView(sub("Envoyez un document à signer de façon sécurisée."))
-        body.addView(guideText("① Choisissez un fichier PDF\n② Sélectionnez le destinataire dans vos contacts\n③ Remplissez la référence et l'objet\n④ Appuyez sur Envoyer — le document sera chiffré pour le téléphone du destinataire uniquement"))
+        body.addView(guideText("① Choisissez un fichier PDF\n② Sélectionnez le destinataire dans vos contacts\n③ Appuyez sur Envoyer — le document sera chiffré pour le téléphone du destinataire uniquement"))
         body.addView(spacer(18))
 
-        // PDF picker card
-        body.addView(pickerCard("📄", "Sélectionnez un fichier PDF", "Parcourir") {
-            Toast.makeText(this, "Sélection PDF — à implémenter", Toast.LENGTH_SHORT).show()
+        // PDF picker card — show selected state
+        val pdfLabel = if (selectedPdfBytes != null) "✓ ${selectedPdfName} (${selectedPdfBytes!!.size} octets)" else "Sélectionnez un fichier PDF"
+        body.addView(pickerCard("📄", pdfLabel, "Parcourir") {
+            pickPdfLauncher.launch(arrayOf("application/pdf"))
         })
         body.addView(spacer(10))
 
-        // Recipient card
-        body.addView(pickerCard("👤", "Choisir un destinataire", "Contacts") {
+        // Recipient card — show selected state
+        val recipientLabel = if (selectedRecipient != null) "✓ ${selectedRecipient!!.optString("name", "?")} — ${selectedRecipient!!.optString("device", "")}" else "Choisir un destinataire"
+        body.addView(pickerCard("👤", recipientLabel, "Contacts") {
             showScreen(Screen.CONTACTS)
         })
         body.addView(spacer(10))
@@ -557,12 +649,94 @@ class MainActivity : FragmentActivity() {
         body.addView(fieldCard("Objet", "Ex: Compromis de vente"))
         body.addView(spacer(24))
 
-        body.addView(cta("Chiffrer et envoyer par email", PURPLE) {
-            Toast.makeText(this, "Chiffrement + email — à implémenter", Toast.LENGTH_SHORT).show()
-        })
+        val sendReady = selectedPdfBytes != null && selectedRecipient != null
+        val sendBtn = cta("Chiffrer et envoyer par email", PURPLE) {
+            doEncryptAndSend()
+        }
+        if (!sendReady) { sendBtn.alpha = 0.4f; sendBtn.isEnabled = false }
+        body.addView(sendBtn)
+
+        if (!sendReady) {
+            body.addView(spacer(8))
+            body.addView(sub("Sélectionnez un PDF et un destinataire pour activer l'envoi.").apply { gravity = Gravity.CENTER; setTextColor(FG4) })
+        }
 
         root.addView(body)
         return root
+    }
+
+    private fun doEncryptAndSend() {
+        val pdf = selectedPdfBytes ?: return
+        val recipient = selectedRecipient ?: return
+        val recipientEncPk = recipient.getString("encryption_pk")
+        val recipientName = recipient.optString("name", "Destinataire")
+
+        BiometricHelper.authenticate(this, "Signer et chiffrer", "Confirmez l'envoi avec votre empreinte",
+            onSuccess = { bio ->
+                try {
+                    // 1. Sign the document
+                    val skB64 = prefs().getString("signing_sk", "") ?: ""
+                    val sk = android.util.Base64.decode(skB64, android.util.Base64.DEFAULT)
+                    val markersJson = prefs().getString("markers", "{}") ?: "{}"
+                    val aid = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+                    val deviceIds = (aid + Build.FINGERPRINT).toByteArray()
+                    val tau = MonotonicCounter.next(this)
+                    val myPk = prefs().getString("signing_pk", "") ?: ""
+                    val docRef = "DOC-${System.currentTimeMillis()}"
+
+                    val attJson = AuthentixCore.signDocument(sk, pdf, bio, deviceIds, tau, markersJson, docRef, myPk)
+                    if (attJson.contains("\"error\"")) {
+                        Toast.makeText(this, "Erreur signature : $attJson", Toast.LENGTH_LONG).show()
+                        return@authenticate
+                    }
+
+                    // 2. Encrypt for recipient
+                    val payloadJson = AuthentixCore.encryptFor(recipientEncPk, pdf)
+                    if (payloadJson.contains("\"error\"")) {
+                        Toast.makeText(this, "Erreur chiffrement : $payloadJson", Toast.LENGTH_LONG).show()
+                        return@authenticate
+                    }
+
+                    // 3. Build .sesame envelope
+                    val envelope = org.json.JSONObject().apply {
+                        put("version", 2)
+                        put("type", "document")
+                        put("payload", org.json.JSONObject(payloadJson))
+                        put("attestation", org.json.JSONObject(attJson))
+                        put("sender", org.json.JSONObject().apply {
+                            put("name", "${Build.MANUFACTURER} ${Build.MODEL}")
+                            put("signing_pk", myPk)
+                        })
+                        put("recipient", org.json.JSONObject().apply {
+                            put("name", recipientName)
+                            put("encryption_pk", recipientEncPk)
+                        })
+                        put("ref", docRef)
+                        put("subject", selectedPdfName)
+                    }
+
+                    // 4. Write .sesame file and send via email
+                    val file = java.io.File(cacheDir, "$docRef.sesame")
+                    file.writeText(envelope.toString())
+                    val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/x-sesame"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, "Document Sésame — $docRef")
+                        putExtra(Intent.EXTRA_TEXT, "Document chiffré envoyé via SÉSAME.\nSeul votre téléphone peut l'ouvrir.")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(intent, "Envoyer le document chiffré"))
+
+                    // 5. Reset send state
+                    selectedPdfBytes = null; selectedPdfName = ""; selectedRecipient = null
+                    Toast.makeText(this, "✓ Document chiffré et envoyé (τ=$tau)", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            },
+            onError = { msg -> Toast.makeText(this, "Erreur bio : $msg", Toast.LENGTH_LONG).show() }
+        )
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -572,38 +746,61 @@ class MainActivity : FragmentActivity() {
     private fun buildContacts(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
-        root.addView(topBar("Authentix Sign", PURPLE, stepLabel("Contacts")))
+        root.addView(topBar("Sésame", PURPLE, stepLabel("Contacts")))
 
         val body = bodyPad()
         body.addView(backLink { showScreen(Screen.HOME) })
         body.addView(eyebrow("Carnet"))
         body.addView(titleSerif("Contacts", PURPLE))
         body.addView(sub("Vos contacts sont les personnes à qui vous pouvez envoyer des documents chiffrés."))
-        body.addView(guideText("Pour ajouter un contact, scannez son QR code (en face à face) ou ouvrez le fichier .authentix-id qu'il vous a envoyé. Chaque contact est lié à un appareil précis."))
+        body.addView(guideText("Pour ajouter un contact, scannez son QR code (en face à face) ou ouvrez le fichier .sesame-id qu'il vous a envoyé. Chaque contact est lié à un appareil précis."))
         body.addView(spacer(18))
 
-        // Empty state
-        val emptyCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
-            setPadding(dp(16), dp(32), dp(16), dp(32))
-            background = card_bg()
-            layoutParams = lp().apply { bottomMargin = dp(14) }
+        // Contact list
+        val contacts = loadContacts()
+        if (contacts.length() == 0) {
+            val emptyCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+                setPadding(dp(16), dp(32), dp(16), dp(32))
+                background = card_bg()
+                layoutParams = lp().apply { bottomMargin = dp(14) }
+            }
+            emptyCard.addView(TextView(this).apply {
+                text = "Aucun contact"; typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG4); gravity = Gravity.CENTER
+            })
+            emptyCard.addView(spacer(4))
+            emptyCard.addView(TextView(this).apply {
+                text = "Scannez un QR ou ouvrez un .sesame-id"; typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(FG4); gravity = Gravity.CENTER
+            })
+            body.addView(emptyCard)
+        } else {
+            for (i in 0 until contacts.length()) {
+                val c = contacts.getJSONObject(i)
+                val contactCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
+                    background = GradientDrawable().apply { setColor(PURPLE_L); setStroke(dp(1), purpleBorder()); cornerRadius = dp(4).toFloat() }
+                    layoutParams = lp().apply { bottomMargin = dp(8) }
+                    isClickable = true; isFocusable = true
+                    setOnClickListener {
+                        selectedRecipient = c
+                        Toast.makeText(this@MainActivity, "Destinataire : ${c.getString("name")}", Toast.LENGTH_SHORT).show()
+                        showScreen(Screen.SEND)
+                    }
+                }
+                contactCard.addView(certRow("✅ ${c.getString("name")}", c.optString("device", "—"), PURPLE))
+                contactCard.addView(certRow("ID", c.optString("id_short", "—"), PURPLE))
+                contactCard.addView(certRow("Clé Sésame", trunc(c.getString("encryption_pk")), PURPLE))
+                body.addView(contactCard)
+            }
         }
-        emptyCard.addView(TextView(this).apply {
-            text = "Aucun contact"; typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(FG4); gravity = Gravity.CENTER
-        })
-        emptyCard.addView(spacer(4))
-        emptyCard.addView(TextView(this).apply {
-            text = "Scannez un QR ou ouvrez un .authentix-id"; typeface = MONO; setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f); setTextColor(FG4); gravity = Gravity.CENTER
-        })
-        body.addView(emptyCard)
+        body.addView(spacer(10))
 
         body.addView(cta("Scanner un QR code", PURPLE) {
             Toast.makeText(this, "Scanner QR — à implémenter", Toast.LENGTH_SHORT).show()
         })
         body.addView(spacer(8))
-        body.addView(ctaOutline("Ouvrir un .authentix-id") {
-            Toast.makeText(this, "Import kit — à implémenter", Toast.LENGTH_SHORT).show()
+        body.addView(ctaOutline("Ouvrir un .sesame-id") {
+            importKitLauncher.launch(arrayOf("*/*"))
         })
         body.addView(spacer(32))
 
@@ -625,7 +822,7 @@ class MainActivity : FragmentActivity() {
         body.addView(idCard)
 
         body.addView(cta("Partager mon QR code", GOLD) {
-            Toast.makeText(this, "QR code — à implémenter", Toast.LENGTH_SHORT).show()
+            showScreen(Screen.MY_ID)
         })
 
         root.addView(body)
@@ -639,14 +836,14 @@ class MainActivity : FragmentActivity() {
     private fun buildMyId(): LinearLayout {
         val root = screenRoot()
         root.addView(accentBar(GOLD))
-        root.addView(topBar("Authentix Sign", GOLD, stepLabel("Mon identité")))
+        root.addView(topBar("Sésame", GOLD, stepLabel("Mon identité")))
 
         val body = bodyPad()
         body.addView(backLink { showScreen(Screen.HOME) })
         body.addView(eyebrow("Carte d'identité numérique"))
         body.addView(titleSerif("Mon\nidentité", GOLD))
         body.addView(sub("Votre carte d'identité numérique. Partagez-la avec les personnes qui doivent vous envoyer des documents chiffrés."))
-        body.addView(guideText("Comment partager :\n① Montrez le QR code ci-dessous à scanner (en face à face)\n② Envoyez-le par email avec le bouton « Partager »\n③ Exportez un fichier .authentix-id à transmettre"))
+        body.addView(guideText("Comment partager :\n① Montrez le QR code ci-dessous à scanner (en face à face)\n② Envoyez-le par email avec le bouton « Partager »\n③ Exportez un fichier .sesame-id à transmettre"))
         body.addView(spacer(14))
 
         val spk = prefs().getString("signing_pk", "") ?: ""
@@ -697,7 +894,7 @@ class MainActivity : FragmentActivity() {
         // Share button
         body.addView(cta("Partager par email", GOLD) { shareKit(kitJson) })
         body.addView(spacer(8))
-        body.addView(ctaOutline("Exporter .authentix-id") { exportKit(kitJson) })
+        body.addView(ctaOutline("Exporter .sesame-id") { exportKit(kitJson) })
 
         root.addView(body)
         return root
@@ -744,7 +941,7 @@ class MainActivity : FragmentActivity() {
     private fun shareKit(kitJson: String) {
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "AUTHENTIX SIGN — Ma clé publique")
+            putExtra(Intent.EXTRA_SUBJECT, "SÉSAME — Ma clé publique")
             putExtra(Intent.EXTRA_TEXT, kitJson)
         }
         startActivity(Intent.createChooser(intent, "Partager mon identité"))
@@ -752,16 +949,16 @@ class MainActivity : FragmentActivity() {
 
     private fun exportKit(kitJson: String) {
         try {
-            val file = java.io.File(cacheDir, "mon-identite.authentix-id")
+            val file = java.io.File(cacheDir, "mon-identite.sesame-id")
             file.writeText(kitJson)
             val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/x-authentix"
+                type = "application/x-sesame"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "AUTHENTIX SIGN — Mon identité")
+                putExtra(Intent.EXTRA_SUBJECT, "SÉSAME — Mon identité")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(intent, "Exporter .authentix-id"))
+            startActivity(Intent.createChooser(intent, "Exporter .sesame-id"))
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur export : ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -806,8 +1003,8 @@ class MainActivity : FragmentActivity() {
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/json"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "AUTHENTIX SIGN — Attestation $pendingDocRef")
-                putExtra(Intent.EXTRA_TEXT, "Attestation de signature Authentix Sign\nRéférence : $pendingDocRef\nSigné sur ${Build.MANUFACTURER} ${Build.MODEL}")
+                putExtra(Intent.EXTRA_SUBJECT, "SÉSAME — Attestation $pendingDocRef")
+                putExtra(Intent.EXTRA_TEXT, "Attestation de signature Sésame\nRéférence : $pendingDocRef\nSigné sur ${Build.MANUFACTURER} ${Build.MODEL}")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(intent, "Envoyer l'attestation"))

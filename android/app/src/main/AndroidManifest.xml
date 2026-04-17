@@ -35,30 +35,30 @@
             android:exported="true"
             android:label="@string/app_name">
 
-            <!-- Open .authentix files (encrypted documents / attestations) -->
+            <!-- Open .sesame files (encrypted documents / attestations) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="content" />
                 <data android:mimeType="*/*" />
-                <data android:pathPattern=".*\\.authentix" />
+                <data android:pathPattern=".*\\.sesame" />
             </intent-filter>
 
-            <!-- Open .authentix-id files (identity kits) -->
+            <!-- Open .sesame-id files (identity kits) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
                 <data android:mimeType="*/*" />
-                <data android:pathPattern=".*\\.authentix-id" />
+                <data android:pathPattern=".*\\.sesame-id" />
             </intent-filter>
 
             <!-- Custom MIME type -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="application/x-authentix" />
+                <data android:mimeType="application/x-sesame" />
             </intent-filter>
         </activity>
 

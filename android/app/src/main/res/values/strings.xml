@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">AUTHENTIX SIGN</string>
+    <string name="app_name">SÉSAME</string>
     <string name="slogan">Signez. Prouvez. Sans serveur.</string>
 
     <string name="short_description">Signez vos documents avec votre empreinte. Sans serveur. Sans DocuSign.</string>
 
-    <string name="full_description">AUTHENTIX SIGN transforme votre téléphone en sceau numérique. Aucun serveur, aucun tiers de confiance.
+    <string name="full_description">SÉSAME transforme votre téléphone en sceau numérique. Aucun serveur, aucun tiers de confiance.
 
 ✓ Signez n\'importe quel document (PDF, photo, texte)
 ✓ Votre empreinte digitale + votre appareil = preuve
@@ -20,9 +20,9 @@ COMMENT ÇA MARCHE :
 4. Ce certificat prouve QUI a signé, QUOI, OÙ et QUAND — sans aucun serveur
 
 POURQUOI C\'EST MIEUX :
-Les plateformes de signature en ligne voient vos documents et dépendent d\'un serveur. AUTHENTIX SIGN ne voit rien, ne stocke rien, et fonctionne même sans internet.
+Les plateformes de signature en ligne voient vos documents et dépendent d\'un serveur. SÉSAME ne voit rien, ne stocke rien, et fonctionne même sans internet.
 
-Technologie brevetée AUTHENTIX™ — fusion cryptographique irréversible.
+Technologie brevetée SÉSAME™ — fusion cryptographique irréversible.
 
 © AION ASEMANTIX</string>
 
