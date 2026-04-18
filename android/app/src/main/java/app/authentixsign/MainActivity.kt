@@ -34,9 +34,6 @@ class MainActivity : FragmentActivity() {
     private var onManifesto = false
     private var manifestoFromMyId = false
     private var manifestoPager: androidx.viewpager2.widget.ViewPager2? = null
-    /** Set when "Partager maintenant" on onboarding page 1 fires the share intent;
-     *  consumed in onResume to advance the pager to page 2. */
-    private var advanceOnboardingAfterShare = false
     private var manifestoPage1Lines: List<View> = emptyList()
     private var manifestoPage2Lines: List<View> = emptyList()
     private var manifestoPage1Animated = false
@@ -1059,7 +1056,6 @@ class MainActivity : FragmentActivity() {
                 body.addView(onboardingMonoSub("Une seule fois."))
                 body.addView(spacer(24))
                 body.addView(ctaTall("Partager maintenant", PURPLE) {
-                    advanceOnboardingAfterShare = true
                     shareKitByEmail()
                 })
             }
@@ -2179,15 +2175,22 @@ class MainActivity : FragmentActivity() {
             Toast.makeText(this, "Kit Sésame indisponible — recréez votre identité", Toast.LENGTH_LONG).show()
             return
         }
-        val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+        val ownerName = try {
+            org.json.JSONObject(kitJson).getJSONObject("owner").optString("name", "").ifEmpty { "—" }
+        } catch (_: Exception) { "—" }
+
         val body = "Bonjour,\n\n" +
-            "Voici mon identité numérique SÉSAME.\n\n" +
-            "Pour m'envoyer un document chiffré :\n" +
-            "1. Installez l'app SÉSAME : https://authentix-sign.tech\n" +
-            "2. Ouvrez ce fichier .sesame-id\n" +
-            "3. L'app vérifiera automatiquement mon identité\n" +
-            "4. Vous pourrez m'envoyer des documents que je serai le seul à pouvoir ouvrir.\n\n" +
-            device
+            "Je vous partage mon identité Sésame.\n\n" +
+            "Sésame est un protocole de signature et\n" +
+            "d'échange de documents entre parties identifiées.\n" +
+            "Aucun document ne transite sur aucun serveur.\n" +
+            "Vos échanges vous appartiennent.\n\n" +
+            "Pour m'ajouter à vos contacts Sésame :\n" +
+            "1. Installez l'app Sésame : https://authentix-sign.tech\n" +
+            "2. Ouvrez le fichier joint — je serai\n" +
+            "   automatiquement ajouté à vos Sésames\n\n" +
+            "Cordialement,\n" +
+            ownerName
 
         try {
             val file = java.io.File(cacheDir, "mon-identite.sesame-id")
@@ -2207,7 +2210,7 @@ class MainActivity : FragmentActivity() {
                 // "application/octet-stream" caused some clients to ignore the attachment.
                 type = "*/*"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Mon identité SÉSAME — $device")
+                putExtra(Intent.EXTRA_SUBJECT, "Mon identité Sésame — $ownerName")
                 putExtra(Intent.EXTRA_TEXT, body)
                 putExtra(Intent.EXTRA_EMAIL, arrayOf<String>())  // prompt user to fill recipients
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -2224,17 +2227,13 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Only the cache file cleanup runs here. The activity is NOT recreated when an
+        // external Intent (email chooser, share target) returns — all activity state
+        // (onOnboarding, onboardingPager, currentScreen, MY_ID data) is preserved, so
+        // the user sees exactly the screen they left.
         pendingKitFile?.let { f ->
             try { if (f.exists()) f.delete() } catch (_: Exception) {}
             pendingKitFile = null
-        }
-        // If the share intent was just fired from onboarding page 1, advance the pager
-        // to page 2 now that the user has come back. .post() waits for layout.
-        if (advanceOnboardingAfterShare) {
-            advanceOnboardingAfterShare = false
-            if (onOnboarding) {
-                onboardingPager?.let { pager -> pager.post { pager.setCurrentItem(1, true) } }
-            }
         }
     }
 
