@@ -846,7 +846,7 @@ class MainActivity : FragmentActivity() {
             text = "glissez →"
             typeface = MONO
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            setTextColor(Color.argb(160, 0x66, 0x55, 0xc0))
+            setTextColor(Color.argb(153, 0xf5, 0xf4, 0xf0))
             gravity = Gravity.END
             setPadding(0, dp(4), dp(2), 0)
             layoutParams = lp()
