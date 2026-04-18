@@ -677,8 +677,8 @@ class MainActivity : FragmentActivity() {
 
     private fun animateManifestoLines(lines: List<View>) {
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
-        val stagger = 280L
-        val duration = 420L
+        val stagger = 800L
+        val duration = 500L
         lines.forEachIndexed { i, v ->
             handler.postDelayed({
                 v.animate().alpha(1f).setDuration(duration).start()
@@ -717,8 +717,8 @@ class MainActivity : FragmentActivity() {
     /** Build one manifesto page with the framed-card decor + staggered text lines. */
     private fun buildManifestoPage(index: Int): View {
         val isDark = (index == 0)
-        val cardColor = if (isDark) Color.parseColor("#2d2a3e") else Color.parseColor("#f5f4f0")
-        val textColor = if (isDark) Color.parseColor("#f5f4f0") else Color.parseColor("#1a1a18")
+        val cardColor = if (isDark) Color.parseColor("#1a1820") else Color.parseColor("#f5f4f0")
+        val textColor = if (isDark) Color.parseColor("#d4d2cc") else Color.parseColor("#6a6860")
 
         val scroll = ScrollView(this).apply {
             setBackgroundColor(BG)
@@ -771,12 +771,12 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun buildManifestoPage1Content(frame: LinearLayout, lines: MutableList<View>, textColor: Int) {
-        // Title — Cormorant italic 24sp #aaa89e centered
+        // Title — Cormorant italic 16sp #6655c0 at 0.7 opacity
         val title = TextView(this).apply {
             text = "Contrairement aux autres acteurs du marché —"
             typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
-            setTextColor(Color.parseColor("#aaa89e"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setTextColor(Color.argb(179, 0x66, 0x55, 0xc0))
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.25f)
             layoutParams = lp().apply { bottomMargin = dp(6) }
@@ -786,8 +786,8 @@ class MainActivity : FragmentActivity() {
         val competitors = TextView(this).apply {
             text = "DocuSign · Adobe Sign · HelloSign · Yousign · et leurs pairs"
             typeface = Typeface.create(MONO, Typeface.ITALIC)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            setTextColor(Color.parseColor("#aaa89e"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            setTextColor(Color.argb(128, 0xaa, 0xa8, 0x9e))
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.3f)
             layoutParams = lp().apply { bottomMargin = dp(14) }
@@ -796,7 +796,7 @@ class MainActivity : FragmentActivity() {
 
         // Divider under the title
         frame.addView(View(this).apply {
-            setBackgroundColor(Color.argb(51, 0x66, 0x55, 0xc0))
+            setBackgroundColor(Color.argb(38, 0x66, 0x55, 0xc0))
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 1).apply { bottomMargin = dp(18) }
         })
 
@@ -815,15 +815,17 @@ class MainActivity : FragmentActivity() {
             "",
             "Rien ne prouve que c'est vous.",
         )
+        // Body — Mono 12sp #d4d2cc at 0.75 opacity, line-height 2.0
+        val bodyColor = Color.argb(191, 0xd4, 0xd2, 0xcc)
         for (text in problemLines) {
             val tv = TextView(this).apply {
                 this.text = text
                 typeface = MONO
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-                setTextColor(textColor)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(bodyColor)
                 gravity = Gravity.CENTER
-                setLineSpacing(0f, 1.45f)
-                layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(4) }
+                setLineSpacing(0f, 2.0f)
+                layoutParams = lp().apply { topMargin = dp(2); bottomMargin = dp(2) }
             }
             frame.addView(tv); lines.add(tv)
         }
@@ -835,8 +837,8 @@ class MainActivity : FragmentActivity() {
         val punch = TextView(this).apply {
             text = "Harvest Now, Decrypt Later."
             typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
-            setTextColor(Color.parseColor("#c05038"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+            setTextColor(Color.parseColor("#9a3820"))
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.15f)
             layoutParams = lp().apply { topMargin = dp(12) }
@@ -852,12 +854,12 @@ class MainActivity : FragmentActivity() {
             )
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(3)).apply { topMargin = dp(22) }
         })
-        // Small mono cue under the gradient, also subtle.
+        // Small mono cue under the gradient — white at 0.4 opacity.
         val swipeCue = TextView(this).apply {
             text = "glissez →"
             typeface = MONO
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            setTextColor(Color.argb(153, 0xf5, 0xf4, 0xf0))
+            setTextColor(Color.argb(102, 0xf5, 0xf4, 0xf0))
             gravity = Gravity.END
             setPadding(0, dp(4), dp(2), 0)
             layoutParams = lp()
@@ -866,14 +868,12 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun buildManifestoPage2Content(frame: LinearLayout, lines: MutableList<View>) {
-        val mono14 = Color.parseColor("#1a1a18")
-
-        // Header — company mark
+        // Header — company mark, Cormorant 14sp #6655c0 at 0.6 opacity (discreet)
         val brandMark = TextView(this).apply {
             text = "AION ASEMANTIX"
             typeface = SERIF_B
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-            setTextColor(PURPLE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setTextColor(Color.argb(153, 0x66, 0x55, 0xc0))
             gravity = Gravity.CENTER
             letterSpacing = 0.08f
             layoutParams = lp().apply { topMargin = dp(2); bottomMargin = dp(2) }
@@ -883,37 +883,21 @@ class MainActivity : FragmentActivity() {
         val brandSub = TextView(this).apply {
             text = "Lyon, France · 2026"
             typeface = MONO
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            setTextColor(Color.parseColor("#aaa89e"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            setTextColor(Color.argb(128, 0xaa, 0xa8, 0x9e))
             gravity = Gravity.CENTER
-            layoutParams = lp().apply { topMargin = dp(2); bottomMargin = dp(14) }
+            layoutParams = lp().apply { topMargin = dp(2); bottomMargin = dp(18) }
         }
         frame.addView(brandSub); lines.add(brandSub)
 
-        // Opening claim — serif italic, one visual paragraph
-        val openingLines = listOf(
+        // Body — Mono 12sp #6a6860 with 2.0 line-spacing (same treatment for opening claim,
+        // body paragraphs and closing fine details — unified "corps" style).
+        val bodyColor = Color.parseColor("#6a6860")
+        val bodyLines = listOf(
             "Sésame instaure un nouveau protocole mondial",
             "d'échanges et de signatures de documents",
             "entre parties identifiées.",
-        )
-        for ((i, text) in openingLines.withIndex()) {
-            val tv = TextView(this).apply {
-                this.text = text
-                typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-                setTextColor(mono14)
-                gravity = Gravity.CENTER
-                setLineSpacing(0f, 1.2f)
-                layoutParams = lp().apply {
-                    topMargin = if (i == 0) dp(4) else dp(1)
-                    bottomMargin = if (i == openingLines.lastIndex) dp(14) else dp(1)
-                }
-            }
-            frame.addView(tv); lines.add(tv)
-        }
-
-        // Body paragraphs — mono 14sp
-        val bodyLines = listOf(
+            "",
             "Sans tiers de confiance.",
             "Sans serveur.",
             "",
@@ -935,11 +919,11 @@ class MainActivity : FragmentActivity() {
             val tv = TextView(this).apply {
                 this.text = text
                 typeface = MONO
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                setTextColor(mono14)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(bodyColor)
                 gravity = Gravity.CENTER
-                setLineSpacing(0f, 1.5f)
-                layoutParams = lp().apply { topMargin = dp(2); bottomMargin = dp(2) }
+                setLineSpacing(0f, 2.0f)
+                layoutParams = lp().apply { topMargin = dp(1); bottomMargin = dp(1) }
             }
             frame.addView(tv); lines.add(tv)
         }
@@ -951,7 +935,7 @@ class MainActivity : FragmentActivity() {
         val punch = TextView(this).apply {
             text = "Harvest Now, Decrypt Never."
             typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
             setTextColor(PURPLE)
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.15f)
@@ -959,7 +943,7 @@ class MainActivity : FragmentActivity() {
         }
         frame.addView(punch); lines.add(punch)
 
-        val fineDetails = listOf(
+        val tailLines = listOf(
             "Résistant aux ordinateurs quantiques.",
             "ML-DSA-65 · ML-KEM-768",
             "NIST FIPS 203 & 204.",
@@ -967,14 +951,14 @@ class MainActivity : FragmentActivity() {
             "Vos documents sont à vous.",
             "Pour toujours.",
         )
-        for (text in fineDetails) {
+        for (text in tailLines) {
             val tv = TextView(this).apply {
                 this.text = text
                 typeface = MONO
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setTextColor(Color.parseColor("#6a6860"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(bodyColor)
                 gravity = Gravity.CENTER
-                setLineSpacing(0f, 1.45f)
+                setLineSpacing(0f, 2.0f)
                 layoutParams = lp().apply { topMargin = dp(1); bottomMargin = dp(1) }
             }
             frame.addView(tv); lines.add(tv)
@@ -996,8 +980,8 @@ class MainActivity : FragmentActivity() {
         val patentMark = TextView(this).apply {
             text = "Innovation brevetée 2026"
             typeface = MONO
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            setTextColor(Color.parseColor("#aaa89e"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+            setTextColor(Color.argb(128, 0xaa, 0xa8, 0x9e))
             gravity = Gravity.CENTER
             letterSpacing = 0.06f
             layoutParams = lp().apply { topMargin = dp(14); bottomMargin = dp(6) }
