@@ -214,6 +214,17 @@ object BiometricHelper {
         return (ks.getEntry(KEYSTORE_ALIAS, null) as KeyStore.SecretKeyEntry).secretKey
     }
 
+    // La clé Android Keystore / StrongBox est notre identifiant matériel I(D)
+    // au sens du brevet PhiProof AION ASEMANTIX.
+    //
+    // Elle est non exportable, liée au TEE (Trusted Execution Environment)
+    // ou StrongBox (puce dédiée si disponible).
+    //
+    // Google Key Attestation — Phase 2 :
+    // Permettra de prouver à un vérificateur externe que la clé
+    // provient d'un vrai StrongBox physique et non d'un émulateur.
+    // Ferme la faille MITM sur FP décrite dans l'analyse de sécurité.
+    // Référence : https://developer.android.com/training/articles/security-key-attestation
     /** Creates the key if absent. StrongBox first, silent TEE fallback. */
     private fun ensureKeyExists(): Boolean {
         if (keyExists()) return true

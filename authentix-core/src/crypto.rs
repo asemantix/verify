@@ -196,6 +196,20 @@ pub fn decrypt(encryption_sk_bytes: &[u8], payload_json: &str) -> Result<Vec<u8>
     Ok(pdf)
 }
 
+// Implémentation partielle du brevet PhiProof — AION ASEMANTIX
+// G = Φ(TAG_SIGN, doc_hash, IDben, I(D), β)
+//
+// I(D) = clé non exportable Android Keystore / StrongBox (TEE)
+//        identifiant matériel intrinsèque au sens du brevet
+// β    = biométrie locale — fusionnée, jamais transmise
+// TAG  = TAG_SIGN (signature de document)
+//
+// Manquant Phase 2 :
+// τ    = métrique temporelle énergétique (brevet TUTE)
+//        garantira la non-rejouabilité par propriété physique monotone
+//
+// Brevet auto-certification pk : FR2605030
+// Sans CA, sans serveur, sans connexion réseau
 /// Sign a document with ML-DSA-65. Produces an attestation JSON.
 pub fn sign_document(
     signing_sk_bytes: &[u8],
@@ -314,6 +328,16 @@ pub fn verify(attestation_json: &str, pdf: Option<&[u8]>) -> Result<VerifyResult
     })
 }
 
+// Auto-certification d'une clé publique par preuve de liaison
+// au dispositif physique — sans autorité de certification.
+// Brevet AION ASEMANTIX FR2605030.
+//
+// build_kit  : produit {pk, marqueurs, preuve}
+//              preuve = Sign(sk, H(marqueurs ‖ pk))
+//              le fichier .sesame-id est ce kit
+//
+// verify_kit : vérifie Verify(pk, H(marqueurs ‖ pk), preuve)
+//              sans CA, sans serveur, sans connexion réseau
 /// Build an enrollment kit (identity file) with self-certification proof (ML-DSA-65).
 pub fn build_kit(
     signing_pk_b64: &str,
