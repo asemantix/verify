@@ -34,6 +34,9 @@ class MainActivity : FragmentActivity() {
     private var onManifesto = false
     private var manifestoFromMyId = false
     private var manifestoPager: androidx.viewpager2.widget.ViewPager2? = null
+    /** Set when "Partager maintenant" on onboarding page 1 fires the share intent;
+     *  consumed in onResume to advance the pager to page 2. */
+    private var advanceOnboardingAfterShare = false
     private var manifestoPage1Lines: List<View> = emptyList()
     private var manifestoPage2Lines: List<View> = emptyList()
     private var manifestoPage1Animated = false
@@ -1019,7 +1022,10 @@ class MainActivity : FragmentActivity() {
                 body.addView(titleSerif("Partagez votre\nidentité avec\nvos Sésames.", PURPLE))
                 body.addView(onboardingMonoSub("Une seule fois."))
                 body.addView(spacer(24))
-                body.addView(ctaTall("Partager maintenant", PURPLE) { shareKitByEmail() })
+                body.addView(ctaTall("Partager maintenant", PURPLE) {
+                    advanceOnboardingAfterShare = true
+                    shareKitByEmail()
+                })
             }
             1 -> {
                 body.addView(titleSerif("Invitez\nvos Sésames.", PURPLE))
@@ -2099,6 +2105,14 @@ class MainActivity : FragmentActivity() {
         pendingKitFile?.let { f ->
             try { if (f.exists()) f.delete() } catch (_: Exception) {}
             pendingKitFile = null
+        }
+        // If the share intent was just fired from onboarding page 1, advance the pager
+        // to page 2 now that the user has come back. .post() waits for layout.
+        if (advanceOnboardingAfterShare) {
+            advanceOnboardingAfterShare = false
+            if (onOnboarding) {
+                onboardingPager?.let { pager -> pager.post { pager.setCurrentItem(1, true) } }
+            }
         }
     }
 
