@@ -82,8 +82,11 @@ class MainActivity : FragmentActivity() {
     private var pendingDocSubject: String = ""
     private var pendingSenderName: String = ""
     private var pendingSenderPk: String = ""
+    private var pendingDocMode: String = "signature"   // "signature" | "readonly"
     private var decryptedPdfBytes: ByteArray? = null
     private var lastAttestationJson: String? = null
+
+    private val MAX_PDF_BYTES = 10L * 1024 * 1024   // 10 MB soft limit
 
     // ── Send flow state ─────────────────────────────────────────────────
     private var selectedPdfBytes: ByteArray? = null
@@ -126,13 +129,40 @@ class MainActivity : FragmentActivity() {
     private val pickPdfLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@registerForActivityResult
         try {
-            selectedPdfBytes = contentResolver.openInputStream(uri)?.readBytes()
-            selectedPdfName = uri.lastPathSegment ?: "document.pdf"
-            Toast.makeText(this, "PDF sélectionné : ${selectedPdfBytes!!.size} octets", Toast.LENGTH_SHORT).show()
-            showScreen(Screen.SEND_DOC)
+            val bytes = contentResolver.openInputStream(uri)?.readBytes()
+                ?: throw Exception("Impossible de lire le fichier")
+            val name = uri.lastPathSegment ?: "document.pdf"
+            if (bytes.size > MAX_PDF_BYTES) {
+                showOversizePdfDialog(bytes, name)
+            } else {
+                selectedPdfBytes = bytes
+                selectedPdfName = name
+                Toast.makeText(this, "PDF sélectionné : ${bytes.size} octets", Toast.LENGTH_SHORT).show()
+                showScreen(Screen.SEND_DOC)
+            }
         } catch (e: Exception) {
             Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun showOversizePdfDialog(bytes: ByteArray, name: String) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Fichier volumineux")
+            .setMessage(
+                "Ce document dépasse 10 MB. Pour l'instant, SÉSAME est optimisé pour les documents jusqu'à 10 MB. " +
+                "Les envois de fichiers volumineux arrivent prochainement."
+            )
+            .setNegativeButton("Choisir un autre fichier") { _, _ ->
+                pickPdfLauncher.launch(arrayOf("application/pdf"))
+            }
+            .setPositiveButton("Envoyer quand même") { _, _ ->
+                selectedPdfBytes = bytes
+                selectedPdfName = name
+                Toast.makeText(this, "PDF sélectionné : ${bytes.size} octets", Toast.LENGTH_SHORT).show()
+                showScreen(Screen.SEND_DOC)
+            }
+            .setCancelable(true)
+            .show()
     }
 
     private val scanQrLauncher = registerForActivityResult(
@@ -274,6 +304,12 @@ class MainActivity : FragmentActivity() {
                     // Extract doc ref/subject
                     pendingDocRef = doc.optString("ref", "DOC-${System.currentTimeMillis()}")
                     pendingDocSubject = doc.optString("subject", "Document reçu")
+
+                    // Determine mode — "document_readonly" = no signature expected
+                    pendingDocMode = when (doc.optString("type", "document")) {
+                        "document_readonly" -> "readonly"
+                        else -> "signature"
+                    }
 
                     // Verify recipient matches me
                     val recipient = doc.optJSONObject("recipient")
@@ -1326,6 +1362,7 @@ class MainActivity : FragmentActivity() {
     // ════════════════════════════════════════════════════════════════════
 
     private fun buildRead(): LinearLayout {
+        if (pendingDocMode == "readonly") return buildReadOnly()
         val root = screenRoot()
         root.addView(accentBar(PURPLE))
         root.addView(topBar("Sésame", PURPLE, stepLabel("Étape 2/3")))
@@ -1402,7 +1439,7 @@ class MainActivity : FragmentActivity() {
         body.addView(hint)
         body.addView(spacer(14))
 
-        val signBtn = cta("Signer ce document", PURPLE) { showScreen(Screen.SIGN) }
+        val signBtn = cta("Signer et renvoyer", PURPLE) { showScreen(Screen.SIGN) }
         signBtn.alpha = 0.4f; signBtn.isEnabled = false
         body.addView(signBtn)
 
@@ -1443,6 +1480,62 @@ class MainActivity : FragmentActivity() {
 
         root.addView(body)
         root.addView(dots(3, 5, PURPLE))
+        return root
+    }
+
+    /** Read-only receive flow — "Envoyer simplement" documents. No timer, no signature. */
+    private fun buildReadOnly(): LinearLayout {
+        val root = screenRoot()
+        root.addView(accentBar(GREEN))
+        root.addView(topBar("Sésame", GREEN, stepLabel("Lecture seule")))
+
+        val body = bodyPad()
+        body.addView(backLink { decryptedPdfBytes = null; pendingPayloadJson = null; showScreen(Screen.HOME) })
+        body.addView(eyebrow("Document reçu"))
+        body.addView(titleSerif("Lisez le\ndocument", GREEN))
+        body.addView(guideText("Votre Sésame vous a envoyé ce document en lecture seule. Aucune signature n'est attendue."))
+        body.addView(spacer(10))
+
+        val pdf = decryptedPdfBytes
+        if (pdf != null) {
+            val hashHex = sha3Hex(pdf)
+            val infoCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(12))
+                background = GradientDrawable().apply { setColor(GREEN_L); setStroke(dp(1), Color.argb(46, 45, 122, 45)); cornerRadius = dp(4).toFloat() }
+                layoutParams = lp().apply { bottomMargin = dp(10) }
+            }
+            infoCard.addView(certRow("État", "Déchiffré ✓", GREEN))
+            infoCard.addView(certRow("Expéditeur", pendingSenderName, GREEN))
+            infoCard.addView(certRow("Objet", pendingDocSubject, GREEN))
+            infoCard.addView(certRow("Taille", "${pdf.size} octets", GREEN))
+            infoCard.addView(certRow("H(doc)", "${hashHex.take(8)}…${hashHex.takeLast(4)}", GREEN))
+            infoCard.addView(certRow("Référence", pendingDocRef, GREEN))
+            body.addView(infoCard)
+
+            val pdfBitmap = renderPdfFirstPage(pdf)
+            if (pdfBitmap != null) {
+                body.addView(android.widget.ImageView(this).apply {
+                    setImageBitmap(pdfBitmap)
+                    scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                    adjustViewBounds = true
+                    setPadding(dp(2), dp(2), dp(2), dp(2))
+                    background = card_bg()
+                    layoutParams = lp().apply { bottomMargin = dp(14) }
+                })
+            } else {
+                body.addView(docPreview(10))
+            }
+        } else {
+            body.addView(docPreview(10))
+        }
+        body.addView(spacer(10))
+
+        body.addView(ctaTall("Fermer", GREEN) {
+            decryptedPdfBytes = null; pendingPayloadJson = null
+            showScreen(Screen.HOME)
+        })
+
+        root.addView(body)
         return root
     }
 
@@ -1648,70 +1741,43 @@ class MainActivity : FragmentActivity() {
         })
         body.addView(spacer(18))
 
-        val signBtn = ctaTall("Signer et envoyer", PURPLE) { doEncryptAndSend() }
+        val signBtn = ctaTall("Envoyer pour signature", PURPLE) { doSendDocument(mode = "signature") }
         if (selectedPdfBytes == null) { signBtn.alpha = 0.4f; signBtn.isEnabled = false }
         body.addView(signBtn)
-        body.addView(spacer(10))
+        body.addView(modeSubtitle("Votre Sésame devra lire et signer. Vous recevrez un certificat."))
+        body.addView(sizeHintLine())
+        body.addView(spacer(12))
 
-        val secureBtn = ctaTall("Envoyer en sécurité", GREEN) { doEncryptOnlyAndSend() }
-        if (selectedPdfBytes == null) { secureBtn.alpha = 0.4f; secureBtn.isEnabled = false }
-        body.addView(secureBtn)
+        val simpleBtn = ctaTall("Envoyer simplement", GREEN) { doSendDocument(mode = "readonly") }
+        if (selectedPdfBytes == null) { simpleBtn.alpha = 0.4f; simpleBtn.isEnabled = false }
+        body.addView(simpleBtn)
+        body.addView(modeSubtitle("Votre Sésame pourra lire le document. Aucune signature requise."))
+        body.addView(sizeHintLine())
 
         root.addView(body)
         return root
     }
 
-    private fun doEncryptOnlyAndSend() {
-        val pdf = selectedPdfBytes ?: return
-        val recipient = selectedRecipient ?: return
-        val recipientEncPk = recipient.getString("encryption_pk")
-        val recipientName = recipient.optString("name", "Votre Sésame")
-
-        try {
-            val payloadJson = AuthentixCore.encryptFor(recipientEncPk, pdf)
-            if (payloadJson.contains("\"error\"")) {
-                Toast.makeText(this, "Erreur chiffrement : $payloadJson", Toast.LENGTH_LONG).show()
-                return
-            }
-
-            val docRef = "DOC-${System.currentTimeMillis()}"
-            val myPk = prefs().getString("signing_pk", "") ?: ""
-            val envelope = org.json.JSONObject().apply {
-                put("version", 2)
-                put("type", "document_secure")
-                put("payload", org.json.JSONObject(payloadJson))
-                put("sender", org.json.JSONObject().apply {
-                    put("name", "${Build.MANUFACTURER} ${Build.MODEL}")
-                    put("signing_pk", myPk)
-                })
-                put("recipient", org.json.JSONObject().apply {
-                    put("name", recipientName)
-                    put("encryption_pk", recipientEncPk)
-                })
-                put("ref", docRef)
-                put("subject", selectedPdfName)
-            }
-
-            val file = java.io.File(cacheDir, "$docRef.sesame")
-            file.writeText(envelope.toString())
-            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/x-sesame"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Document Sésame (sécurisé) — $docRef")
-                putExtra(Intent.EXTRA_TEXT, "Document chiffré envoyé via SÉSAME en mode sécurisé (sans signature).\nSeul le téléphone du destinataire peut l'ouvrir.")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(intent, "Envoyer le document sécurisé"))
-
-            selectedPdfBytes = null; selectedPdfName = ""; selectedRecipient = null
-            Toast.makeText(this, "✓ Document chiffré et envoyé en sécurité", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
-        }
+    private fun modeSubtitle(text: String) = TextView(this).apply {
+        this.text = text
+        typeface = MONO
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        setTextColor(FG3)
+        layoutParams = lp().apply { topMargin = dp(6); bottomMargin = dp(2) }
     }
 
-    private fun doEncryptAndSend() {
+    private fun sizeHintLine() = TextView(this).apply {
+        text = "Documents jusqu'à 10 MB · Fichiers volumineux bientôt"
+        typeface = MONO
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        setTextColor(FG4)
+        layoutParams = lp().apply { topMargin = dp(2) }
+    }
+
+    /** Both send modes require sender biometrics to confirm intent. The unwrapped key
+     *  is not used for signing — it just proves the sender is present and bound to the
+     *  device. The recipient is the one who signs (when mode == "signature"). */
+    private fun doSendDocument(mode: String) {
         val pdf = selectedPdfBytes ?: return
         val recipient = selectedRecipient ?: return
         val recipientEncPk = recipient.getString("encryption_pk")
@@ -1719,37 +1785,24 @@ class MainActivity : FragmentActivity() {
 
         val blobB64 = prefs().getString("signing_sk_blob", "") ?: ""
         val blob = android.util.Base64.decode(blobB64, android.util.Base64.DEFAULT)
-        BiometricHelper.unwrapKey(this, "Signer et chiffrer", "Confirmez l'envoi avec votre empreinte", blob,
+        val bioTitle = if (mode == "signature") "Envoyer pour signature" else "Envoyer simplement"
+        val bioSubtitle = "Confirmez l'envoi avec votre empreinte"
+        BiometricHelper.unwrapKey(this, bioTitle, bioSubtitle, blob,
             onSuccess = { combined ->
-                var sk: ByteArray? = null
-                val bio = ByteArray(32).also { SecureRandom().nextBytes(it) }
                 try {
-                    val pair = org.json.JSONObject(String(combined, Charsets.UTF_8))
-                    sk = android.util.Base64.decode(pair.getString("sign_sk"), android.util.Base64.DEFAULT)
-                    val markersJson = prefs().getString("markers", "{}") ?: "{}"
-                    val aid = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-                    val deviceIds = (aid + Build.FINGERPRINT).toByteArray()
-                    val tau = MonotonicCounter.next(this)
-                    val myPk = prefs().getString("signing_pk", "") ?: ""
-                    val docRef = "DOC-${System.currentTimeMillis()}"
-
-                    val attJson = AuthentixCore.signDocument(sk, pdf, bio, deviceIds, tau, markersJson, docRef, myPk)
-                    if (attJson.contains("\"error\"")) {
-                        Toast.makeText(this, "Erreur signature : $attJson", Toast.LENGTH_LONG).show()
-                        return@unwrapKey
-                    }
-
                     val payloadJson = AuthentixCore.encryptFor(recipientEncPk, pdf)
                     if (payloadJson.contains("\"error\"")) {
                         Toast.makeText(this, "Erreur chiffrement : $payloadJson", Toast.LENGTH_LONG).show()
                         return@unwrapKey
                     }
 
+                    val docRef = "DOC-${System.currentTimeMillis()}"
+                    val myPk = prefs().getString("signing_pk", "") ?: ""
+                    val envType = if (mode == "signature") "document" else "document_readonly"
                     val envelope = org.json.JSONObject().apply {
                         put("version", 2)
-                        put("type", "document")
+                        put("type", envType)
                         put("payload", org.json.JSONObject(payloadJson))
-                        put("attestation", org.json.JSONObject(attJson))
                         put("sender", org.json.JSONObject().apply {
                             put("name", "${Build.MANUFACTURER} ${Build.MODEL}")
                             put("signing_pk", myPk)
@@ -1765,22 +1818,36 @@ class MainActivity : FragmentActivity() {
                     val file = java.io.File(cacheDir, "$docRef.sesame")
                     file.writeText(envelope.toString())
                     val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+                    val subjectLine = if (mode == "signature")
+                        "Document Sésame (à signer) — $docRef"
+                    else
+                        "Document Sésame — $docRef"
+                    val bodyLine = if (mode == "signature")
+                        "Document chiffré envoyé via SÉSAME.\nVotre Sésame devra le lire et le signer, puis vous renverra un certificat."
+                    else
+                        "Document chiffré envoyé via SÉSAME.\nSeul votre Sésame peut l'ouvrir. Aucune signature n'est attendue."
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "application/x-sesame"
                         putExtra(Intent.EXTRA_STREAM, uri)
-                        putExtra(Intent.EXTRA_SUBJECT, "Document Sésame — $docRef")
-                        putExtra(Intent.EXTRA_TEXT, "Document chiffré envoyé via SÉSAME.\nSeul votre téléphone peut l'ouvrir.")
+                        putExtra(Intent.EXTRA_SUBJECT, subjectLine)
+                        putExtra(Intent.EXTRA_TEXT, bodyLine)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    startActivity(Intent.createChooser(intent, "Envoyer le document chiffré"))
+                    val chooserTitle = if (mode == "signature")
+                        "Envoyer le document à signer"
+                    else
+                        "Envoyer le document"
+                    startActivity(Intent.createChooser(intent, chooserTitle))
 
                     selectedPdfBytes = null; selectedPdfName = ""; selectedRecipient = null
-                    Toast.makeText(this, "✓ Document chiffré et envoyé (τ=$tau)", Toast.LENGTH_LONG).show()
+                    val toastMsg = if (mode == "signature")
+                        "✓ Document envoyé — en attente de signature"
+                    else
+                        "✓ Document envoyé — lecture seule"
+                    Toast.makeText(this, toastMsg, Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
                     Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
                 } finally {
-                    sk?.let { Arrays.fill(it, 0) }
-                    Arrays.fill(bio, 0)
                     Arrays.fill(combined, 0)
                 }
             },
