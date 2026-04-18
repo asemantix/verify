@@ -1648,12 +1648,67 @@ class MainActivity : FragmentActivity() {
         })
         body.addView(spacer(18))
 
-        val continueBtn = ctaTall("Chiffrer et envoyer", PURPLE) { doEncryptAndSend() }
-        if (selectedPdfBytes == null) { continueBtn.alpha = 0.4f; continueBtn.isEnabled = false }
-        body.addView(continueBtn)
+        val signBtn = ctaTall("Signer et envoyer", PURPLE) { doEncryptAndSend() }
+        if (selectedPdfBytes == null) { signBtn.alpha = 0.4f; signBtn.isEnabled = false }
+        body.addView(signBtn)
+        body.addView(spacer(10))
+
+        val secureBtn = ctaTall("Envoyer en sécurité", GREEN) { doEncryptOnlyAndSend() }
+        if (selectedPdfBytes == null) { secureBtn.alpha = 0.4f; secureBtn.isEnabled = false }
+        body.addView(secureBtn)
 
         root.addView(body)
         return root
+    }
+
+    private fun doEncryptOnlyAndSend() {
+        val pdf = selectedPdfBytes ?: return
+        val recipient = selectedRecipient ?: return
+        val recipientEncPk = recipient.getString("encryption_pk")
+        val recipientName = recipient.optString("name", "Votre Sésame")
+
+        try {
+            val payloadJson = AuthentixCore.encryptFor(recipientEncPk, pdf)
+            if (payloadJson.contains("\"error\"")) {
+                Toast.makeText(this, "Erreur chiffrement : $payloadJson", Toast.LENGTH_LONG).show()
+                return
+            }
+
+            val docRef = "DOC-${System.currentTimeMillis()}"
+            val myPk = prefs().getString("signing_pk", "") ?: ""
+            val envelope = org.json.JSONObject().apply {
+                put("version", 2)
+                put("type", "document_secure")
+                put("payload", org.json.JSONObject(payloadJson))
+                put("sender", org.json.JSONObject().apply {
+                    put("name", "${Build.MANUFACTURER} ${Build.MODEL}")
+                    put("signing_pk", myPk)
+                })
+                put("recipient", org.json.JSONObject().apply {
+                    put("name", recipientName)
+                    put("encryption_pk", recipientEncPk)
+                })
+                put("ref", docRef)
+                put("subject", selectedPdfName)
+            }
+
+            val file = java.io.File(cacheDir, "$docRef.sesame")
+            file.writeText(envelope.toString())
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/x-sesame"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Document Sésame (sécurisé) — $docRef")
+                putExtra(Intent.EXTRA_TEXT, "Document chiffré envoyé via SÉSAME en mode sécurisé (sans signature).\nSeul le téléphone du destinataire peut l'ouvrir.")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Envoyer le document sécurisé"))
+
+            selectedPdfBytes = null; selectedPdfName = ""; selectedRecipient = null
+            Toast.makeText(this, "✓ Document chiffré et envoyé en sécurité", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun doEncryptAndSend() {
