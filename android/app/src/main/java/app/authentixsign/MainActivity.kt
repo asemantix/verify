@@ -903,9 +903,6 @@ class MainActivity : FragmentActivity() {
 
         // Body paragraphs — mono 14sp
         val bodyLines = listOf(
-            "Trois inventions déposées à l'INPI.",
-            "Aucun équivalent sur le marché.",
-            "",
             "Sans tiers de confiance.",
             "Sans serveur.",
             "",
@@ -984,6 +981,17 @@ class MainActivity : FragmentActivity() {
             layoutParams = lp().apply { topMargin = dp(20) }
         }
         frame.addView(enterBtn); lines.add(enterBtn)
+
+        val patentMark = TextView(this).apply {
+            text = "Innovation brevetée 2026"
+            typeface = MONO
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            setTextColor(Color.parseColor("#aaa89e"))
+            gravity = Gravity.CENTER
+            letterSpacing = 0.06f
+            layoutParams = lp().apply { topMargin = dp(14); bottomMargin = dp(6) }
+        }
+        frame.addView(patentMark); lines.add(patentMark)
     }
 
     // ════════════════════════════════════════════════════════════════════
