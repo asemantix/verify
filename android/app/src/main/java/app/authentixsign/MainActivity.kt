@@ -779,9 +779,20 @@ class MainActivity : FragmentActivity() {
             setTextColor(Color.parseColor("#aaa89e"))
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.25f)
-            layoutParams = lp().apply { bottomMargin = dp(14) }
+            layoutParams = lp().apply { bottomMargin = dp(6) }
         }
         frame.addView(title); lines.add(title)
+
+        val competitors = TextView(this).apply {
+            text = "DocuSign · Adobe Sign · HelloSign · Yousign · et leurs pairs"
+            typeface = Typeface.create(MONO, Typeface.ITALIC)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(Color.parseColor("#aaa89e"))
+            gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.3f)
+            layoutParams = lp().apply { bottomMargin = dp(14) }
+        }
+        frame.addView(competitors); lines.add(competitors)
 
         // Divider under the title
         frame.addView(View(this).apply {
@@ -2058,9 +2069,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun sendInviteSms() {
-        val body = "Installe Sésame https://authentix-sign.tech\n" +
-            "et ouvre le fichier que je t'envoie par email\n" +
-            "pour m'ajouter à tes Sésames."
+        val body = "Installez Sésame :\n" +
+            "- Site web : https://authentix-sign.tech\n" +
+            "- Google Play : https://play.google.com/store/apps/details?id=app.authentixsign\n" +
+            "Ouvrez ensuite le fichier que je vous envoie\n" +
+            "par email pour m'ajouter à vos Sésames."
         try {
             val intent = Intent(Intent.ACTION_SENDTO).apply {
                 data = android.net.Uri.parse("smsto:")
