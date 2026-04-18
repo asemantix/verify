@@ -34,6 +34,9 @@ class MainActivity : FragmentActivity() {
     private var onManifesto = false
     private var manifestoFromMyId = false
     private var manifestoPager: androidx.viewpager2.widget.ViewPager2? = null
+    /** Invite flow state: 0 = idle, 1 = SMS fired (waiting for return),
+     *  2 = email fired (waiting for return → HOME + toast). Consumed in onResume. */
+    private var pendingInviteStep = 0
     private var manifestoPage1Lines: List<View> = emptyList()
     private var manifestoPage2Lines: List<View> = emptyList()
     private var manifestoPage1Animated = false
@@ -1055,8 +1058,8 @@ class MainActivity : FragmentActivity() {
                 body.addView(titleSerif("Partagez votre\nidentité avec\nvos Sésames.", PURPLE))
                 body.addView(onboardingMonoSub("Une seule fois."))
                 body.addView(spacer(24))
-                body.addView(ctaTall("Partager maintenant", PURPLE) {
-                    shareKitByEmail()
+                body.addView(ctaTall("Inviter un Sésame", PURPLE) {
+                    startInviteFlow()
                 })
             }
             1 -> {
@@ -1990,17 +1993,28 @@ class MainActivity : FragmentActivity() {
         ))
         body.addView(spacer(18))
 
-        body.addView(ctaTall("Inviter par SMS", PURPLE) { sendInviteSms() })
-        body.addView(spacer(12))
-        body.addView(ctaTall("Inviter par email", PURPLE) { sendInviteEmailWithKit() })
+        body.addView(ctaTall("Inviter un Sésame", PURPLE) { startInviteFlow() })
 
         root.addView(body)
         return root
     }
 
+    /** Chains SMS → Email → HOME. Step 1 fires SMS; onResume detects return and fires
+     *  the email intent; next onResume shows a toast and lands on HOME. */
+    private fun startInviteFlow() {
+        val kitJson = prefs().getString("signed_kit_json", "") ?: ""
+        if (kitJson.isEmpty()) {
+            Toast.makeText(this, "Kit Sésame indisponible — recréez votre identité", Toast.LENGTH_LONG).show()
+            return
+        }
+        pendingInviteStep = 1
+        sendInviteSms()
+    }
+
     private fun sendInviteSms() {
-        val body = "Installe Sésame pour recevoir mes documents sécurisés : https://authentix-sign.tech\n" +
-            "Quand c'est fait envoie-moi ton identité Sésame."
+        val body = "Installe Sésame https://authentix-sign.tech\n" +
+            "et ouvre le fichier que je t'envoie par email\n" +
+            "pour m'ajouter à tes Sésames."
         try {
             val intent = Intent(Intent.ACTION_SENDTO).apply {
                 data = android.net.Uri.parse("smsto:")
@@ -2008,7 +2022,10 @@ class MainActivity : FragmentActivity() {
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "Aucune app SMS disponible", Toast.LENGTH_LONG).show()
+            // No SMS app — skip straight to the email step so the flow can still complete.
+            Toast.makeText(this, "Aucune app SMS — envoi par email uniquement", Toast.LENGTH_SHORT).show()
+            pendingInviteStep = 2
+            container.post { sendInviteEmailWithKit() }
         }
     }
 
@@ -2016,6 +2033,7 @@ class MainActivity : FragmentActivity() {
         val kitJson = prefs().getString("signed_kit_json", "") ?: ""
         if (kitJson.isEmpty()) {
             Toast.makeText(this, "Kit Sésame indisponible", Toast.LENGTH_LONG).show()
+            pendingInviteStep = 0
             return
         }
         try {
@@ -2025,13 +2043,16 @@ class MainActivity : FragmentActivity() {
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 this, "$packageName.fileprovider", file,
             )
-            val body = "Installe Sésame : https://authentix-sign.tech\n" +
-                "Ouvre le fichier joint pour m'ajouter à tes Sésames. Renvoie-moi ton identité."
+            val body = "Pour m'ajouter à tes contacts Sésame :\n" +
+                "1. Installe l'app : https://authentix-sign.tech\n" +
+                "2. Ouvre le fichier joint — je serai\n" +
+                "   automatiquement ajouté à tes Sésames."
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/octet-stream"
+                type = "*/*"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Mon identité Sésame")
+                putExtra(Intent.EXTRA_SUBJECT, "Rejoins-moi sur Sésame")
                 putExtra(Intent.EXTRA_TEXT, body)
+                putExtra(Intent.EXTRA_EMAIL, arrayOf<String>())
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 clipData = android.content.ClipData.newRawUri("mon-identite.sesame-id", uri)
             }
@@ -2040,6 +2061,18 @@ class MainActivity : FragmentActivity() {
         } catch (e: Exception) {
             android.util.Log.e("SesameShare", "sendInviteEmailWithKit failed", e)
             Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+            pendingInviteStep = 0
+        }
+    }
+
+    /** Terminate the invite chain: toast + navigate to HOME (completing onboarding
+     *  if the flow was started from the onboarding pager). */
+    private fun finishInviteFlow() {
+        Toast.makeText(this, "Invitation envoyée ✓", Toast.LENGTH_LONG).show()
+        if (onOnboarding) {
+            completeOnboarding()
+        } else {
+            showScreen(Screen.HOME)
         }
     }
 
@@ -2227,13 +2260,23 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Only the cache file cleanup runs here. The activity is NOT recreated when an
-        // external Intent (email chooser, share target) returns — all activity state
-        // (onOnboarding, onboardingPager, currentScreen, MY_ID data) is preserved, so
-        // the user sees exactly the screen they left.
+        // The activity is NOT recreated when an external Intent (email chooser, SMS app)
+        // returns — all activity state (onOnboarding, onboardingPager, currentScreen,
+        // MY_ID data) is preserved, so the user sees exactly the screen they left.
         pendingKitFile?.let { f ->
             try { if (f.exists()) f.delete() } catch (_: Exception) {}
             pendingKitFile = null
+        }
+        // Chain the invite flow: SMS returned → fire email; email returned → HOME.
+        when (pendingInviteStep) {
+            1 -> {
+                pendingInviteStep = 2
+                container.post { sendInviteEmailWithKit() }
+            }
+            2 -> {
+                pendingInviteStep = 0
+                finishInviteFlow()
+            }
         }
     }
 
