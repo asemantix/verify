@@ -893,7 +893,20 @@ class MainActivity : FragmentActivity() {
         // Body — Mono 12sp #6a6860 with 2.0 line-spacing (same treatment for opening claim,
         // body paragraphs and closing fine details — unified "corps" style).
         val bodyColor = Color.parseColor("#6a6860")
-        val bodyLines = listOf(
+        fun addBody(text: String) {
+            val tv = TextView(this).apply {
+                this.text = text
+                typeface = MONO
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(bodyColor)
+                gravity = Gravity.CENTER
+                setLineSpacing(0f, 2.0f)
+                layoutParams = lp().apply { topMargin = dp(1); bottomMargin = dp(1) }
+            }
+            frame.addView(tv); lines.add(tv)
+        }
+
+        val bodyHead = listOf(
             "Sésame instaure un nouveau protocole mondial",
             "d'échanges et de signatures de documents",
             "entre parties identifiées.",
@@ -911,22 +924,34 @@ class MainActivity : FragmentActivity() {
             "La preuve est là. Pour toujours.",
             "",
             "Vos documents ne transitent nulle part.",
+            "Vos documents chiffrés sont indistinguables",
+            "du bruit aléatoire.",
+            "Aucun opérateur réseau, aucun data center",
+            "ne peut en établir l'existence.",
+            "",
+        )
+        for (t in bodyHead) addBody(t)
+
+        // Accent — "C'est l'asémanticité." in Cormorant italic 16sp PURPLE
+        val asemanticityAccent = TextView(this).apply {
+            text = "C'est l'asémanticité."
+            typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setTextColor(PURPLE)
+            gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.3f)
+            layoutParams = lp().apply { topMargin = dp(6); bottomMargin = dp(2) }
+        }
+        frame.addView(asemanticityAccent); lines.add(asemanticityAccent)
+
+        val bodyTail = listOf(
+            "Le principe fondateur d'AION ASEMANTIX.",
+            "",
             "Ils n'existent sur aucun serveur.",
             "On ne peut pas récolter",
             "ce qui n'existe pas.",
         )
-        for (text in bodyLines) {
-            val tv = TextView(this).apply {
-                this.text = text
-                typeface = MONO
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                setTextColor(bodyColor)
-                gravity = Gravity.CENTER
-                setLineSpacing(0f, 2.0f)
-                layoutParams = lp().apply { topMargin = dp(1); bottomMargin = dp(1) }
-            }
-            frame.addView(tv); lines.add(tv)
-        }
+        for (t in bodyTail) addBody(t)
 
         frame.addView(View(this).apply {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(14))
