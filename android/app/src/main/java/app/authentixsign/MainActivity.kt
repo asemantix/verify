@@ -857,14 +857,54 @@ class MainActivity : FragmentActivity() {
     private fun buildManifestoPage2Content(frame: LinearLayout, lines: MutableList<View>) {
         val mono14 = Color.parseColor("#1a1a18")
 
-        val solutionLines = listOf(
-            "Sésame est un outil professionnel",
+        // Header — company mark
+        val brandMark = TextView(this).apply {
+            text = "AION ASEMANTIX"
+            typeface = SERIF_B
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            setTextColor(PURPLE)
+            gravity = Gravity.CENTER
+            letterSpacing = 0.08f
+            layoutParams = lp().apply { topMargin = dp(2); bottomMargin = dp(2) }
+        }
+        frame.addView(brandMark); lines.add(brandMark)
+
+        val brandSub = TextView(this).apply {
+            text = "Lyon, France · 2026"
+            typeface = MONO
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(Color.parseColor("#aaa89e"))
+            gravity = Gravity.CENTER
+            layoutParams = lp().apply { topMargin = dp(2); bottomMargin = dp(14) }
+        }
+        frame.addView(brandSub); lines.add(brandSub)
+
+        // Opening claim — serif italic, one visual paragraph
+        val openingLines = listOf(
+            "Sésame instaure un nouveau protocole mondial",
             "d'échanges et de signatures de documents",
             "entre parties identifiées.",
-            "",
-            "Notaires. Avocats. Médecins.",
-            "Banques. Entreprises.",
-            "Tout professionnel qui engage sa signature.",
+        )
+        for ((i, text) in openingLines.withIndex()) {
+            val tv = TextView(this).apply {
+                this.text = text
+                typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+                setTextColor(mono14)
+                gravity = Gravity.CENTER
+                setLineSpacing(0f, 1.2f)
+                layoutParams = lp().apply {
+                    topMargin = if (i == 0) dp(4) else dp(1)
+                    bottomMargin = if (i == openingLines.lastIndex) dp(14) else dp(1)
+                }
+            }
+            frame.addView(tv); lines.add(tv)
+        }
+
+        // Body paragraphs — mono 14sp
+        val bodyLines = listOf(
+            "Trois inventions déposées à l'INPI.",
+            "Aucun équivalent sur le marché.",
             "",
             "Sans tiers de confiance.",
             "Sans serveur.",
@@ -883,7 +923,7 @@ class MainActivity : FragmentActivity() {
             "On ne peut pas récolter",
             "ce qui n'existe pas.",
         )
-        for (text in solutionLines) {
+        for (text in bodyLines) {
             val tv = TextView(this).apply {
                 this.text = text
                 typeface = MONO
@@ -912,11 +952,9 @@ class MainActivity : FragmentActivity() {
         frame.addView(punch); lines.add(punch)
 
         val fineDetails = listOf(
-            "Trois inventions brevetées.",
-            "",
-            "Asémantique.",
-            "Fusion locale.",
-            "Dérivation cryptographique physique.",
+            "Résistant aux ordinateurs quantiques.",
+            "ML-DSA-65 · ML-KEM-768",
+            "NIST FIPS 203 & 204.",
             "",
             "Vos documents sont à vous.",
             "Pour toujours.",
