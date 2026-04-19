@@ -1,8 +1,25 @@
+# Cross-compilation config for Android targets.
+#
+# We bypass the NDK's `*-clang.cmd` wrapper and call `clang.exe` directly.
+# The wrapper only adds `--target=<triple><api>` and forwards `%*`, but its
+# batch-file forwarding mangles arguments that contain spaces — and our
+# project sits under `C:\Users\Diego DUBOIS\`. Instead we invoke the native
+# Windows clang.exe (which parses arguments via the CRT, so spaces inside
+# quoted paths are handled correctly) and pass the `--target=` flag ourselves
+# via `rustflags`.
+#
+# The path uses the Windows 8.3 short name `DIEGOD~1` as defence-in-depth
+# against any remaining quoting issues — cargo forwards this string unquoted
+# to rustc.
+
 [target.aarch64-linux-android]
-linker = "C:\\Users\\Diego DUBOIS\\Desktop\\DRIVE-READY\\authentix-core\\ndk-aarch64-link.cmd"
+linker = "C:/Users/DIEGOD~1/AppData/Local/Android/Sdk/ndk/26.2.11394342/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe"
+rustflags = ["-C", "link-arg=--target=aarch64-linux-android21"]
 
 [target.armv7-linux-androideabi]
-linker = "C:\\Users\\Diego DUBOIS\\Desktop\\DRIVE-READY\\authentix-core\\ndk-armv7-link.cmd"
+linker = "C:/Users/DIEGOD~1/AppData/Local/Android/Sdk/ndk/26.2.11394342/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe"
+rustflags = ["-C", "link-arg=--target=armv7a-linux-androideabi21"]
 
 [target.x86_64-linux-android]
-linker = "C:\\Users\\Diego DUBOIS\\Desktop\\DRIVE-READY\\authentix-core\\ndk-x86_64-link.cmd"
+linker = "C:/Users/DIEGOD~1/AppData/Local/Android/Sdk/ndk/26.2.11394342/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe"
+rustflags = ["-C", "link-arg=--target=x86_64-linux-android21"]

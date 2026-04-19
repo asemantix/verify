@@ -774,11 +774,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun buildManifestoPage1Content(frame: LinearLayout, lines: MutableList<View>, textColor: Int) {
-        // Wordmark — SÉSAME 72sp PURPLE, dominant element at the top
+        // Wordmark — SÉSAME 52sp PURPLE, dominant element at the top
         val wordmark = TextView(this).apply {
             text = "SÉSAME"
             typeface = SERIF_B
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 72f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 52f)
             setTextColor(PURPLE)
             gravity = Gravity.CENTER
             letterSpacing = 0.04f
