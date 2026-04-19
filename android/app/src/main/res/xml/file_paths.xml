@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- Dedicated subfolders used by the invite flow and future persistent
+         share-files. Declared explicitly so their content:// URIs are stable
+         and obviously-scoped in the manifest. -->
+    <cache-path name="sesame_ids"   path="sesame_ids/" />
+    <files-path name="sesame_files" path="sesame_files/" />
+
+    <!-- Root of cacheDir — still used by the document send flow, attestation
+         export and legacy kit share. Kept exposed so existing FileProvider
+         URIs resolve without a migration of every call site. -->
     <cache-path name="cache" path="." />
 </paths>

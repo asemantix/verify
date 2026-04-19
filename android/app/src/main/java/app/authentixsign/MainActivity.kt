@@ -2132,13 +2132,23 @@ class MainActivity : FragmentActivity() {
         }
 
         try {
-            val file = java.io.File(cacheDir, attachmentName)
-            if (file.exists()) file.delete()
+            // Dedicated subfolder declared in res/xml/file_paths.xml. The file
+            // MUST survive the whole email-compose lifetime on the receiver side
+            // — we can't delete it on the next onResume, because the chooser
+            // dismissal resumes us before the mail app has read the URI. We
+            // clean stale previous files here instead, at the *start* of the
+            // next invite, when the previous share has definitely been consumed.
+            val sesameIdsDir = java.io.File(cacheDir, "sesame_ids").apply { mkdirs() }
+            sesameIdsDir.listFiles()?.forEach { runCatching { it.delete() } }
+
+            val file = java.io.File(sesameIdsDir, attachmentName)
             file.writeText(kitJson, Charsets.UTF_8)
             if (!file.exists() || file.length() == 0L) {
-                Toast.makeText(this, "Erreur : fichier .sesame-id non écrit", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Erreur : fichier .sesame-id non écrit — retour à l'accueil", Toast.LENGTH_LONG).show()
+                showScreen(Screen.HOME)
                 return
             }
+
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 this, "$packageName.fileprovider", file,
             )
@@ -2151,13 +2161,20 @@ class MainActivity : FragmentActivity() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 clipData = android.content.ClipData.newRawUri(attachmentName, uri)
             }
-            pendingKitFile = file
             pendingInviteEmail = true
-            startActivity(Intent.createChooser(intent, "Inviter un Sésame"))
+            try {
+                startActivity(Intent.createChooser(intent, "Inviter un Sésame"))
+            } catch (e: android.content.ActivityNotFoundException) {
+                // No mail/share app available — don't strand the user.
+                pendingInviteEmail = false
+                Toast.makeText(this, "Aucune app mail disponible — réessayez plus tard", Toast.LENGTH_LONG).show()
+                showScreen(Screen.HOME)
+            }
         } catch (e: Exception) {
             android.util.Log.e("SesameShare", "startInviteFlow failed", e)
-            Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Erreur d'envoi : ${e.message} — retour à l'accueil", Toast.LENGTH_LONG).show()
             pendingInviteEmail = false
+            showScreen(Screen.HOME)
         }
     }
 
@@ -2294,21 +2311,17 @@ class MainActivity : FragmentActivity() {
         return sdf.format(java.util.Date(millis))
     }
 
-    /** File currently attached to a pending share intent. Deleted on the next onResume —
-     *  we can't delete immediately because the receiving app reads the URI asynchronously.
-     *  Written by startInviteFlow() when the invite email intent is fired. */
-    private var pendingKitFile: java.io.File? = null
-
     override fun onResume() {
         super.onResume()
-        // The activity is NOT recreated when an external Intent (email chooser, SMS app)
-        // returns — all activity state (onOnboarding, onboardingPager, currentScreen,
-        // MY_ID data) is preserved, so the user sees exactly the screen they left.
-        pendingKitFile?.let { f ->
-            try { if (f.exists()) f.delete() } catch (_: Exception) {}
-            pendingKitFile = null
-        }
-        // Return from the single invite email intent → finish the flow.
+        // The activity is NOT recreated when an external Intent (email chooser)
+        // returns — all activity state is preserved.
+        //
+        // We intentionally do NOT delete the .sesame-id cache file here: the
+        // chooser dismissal resumes MainActivity BEFORE the mail app has read
+        // the URI (Gmail reads it lazily when the user taps Send). Deleting
+        // here left the mail app pointing at a ghost URI and showing
+        // "le fichier n'a pas pu être joint". Stale files are cleaned at the
+        // *start* of the next startInviteFlow() call instead.
         if (pendingInviteEmail) {
             pendingInviteEmail = false
             finishInviteFlow()
