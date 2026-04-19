@@ -513,6 +513,69 @@ mod tests {
         assert_eq!(k6, "78e2e085f166f8507912ec08980fd78d50a0bb38fc81806045a989f323df2952");
     }
 
+    // Helper: shorten a base64 string to `<first>…<last>` when longer than
+    // `keep` chars — keeps JSON samples readable without losing the shape.
+    fn short_b64(s: &str) -> String {
+        if s.len() <= 20 { s.to_string() } else { format!("{}…{}", &s[..10], &s[s.len() - 6..]) }
+    }
+
+    fn short_markers(m: &Markers) -> Markers {
+        Markers {
+            brand: m.brand.clone(),
+            model: m.model.clone(),
+            id_short: m.id_short.clone(),
+            os: m.os.clone(),
+            app_version: m.app_version.clone(),
+            created: m.created.clone(),
+        }
+    }
+
+    /// Pretty-print a real EnrollmentKit and a real Attestation — shape-accurate
+    /// JSON samples for SDK Rust Phase 3 alignment. Real values are truncated
+    /// for readability but every field name and its JSON ordering is real.
+    #[test]
+    fn sample_json_enrollment_kit_and_attestation() {
+        // 1) Build a real kit through the code, then truncate base64 for display.
+        let (setup_res, sk_blob, _enc_sk, _, _) = dummy_setup();
+        let kit_json = build_kit(
+            &setup_res.signing_pk,
+            &setup_res.encryption_pk,
+            &sk_blob,
+            &setup_res.markers,
+            "Marie Dupont",
+            "marie.dupont@example.com",
+        ).expect("build_kit");
+        let mut kit: EnrollmentKit = serde_json::from_str(&kit_json).unwrap();
+        kit.owner.signing_pk    = short_b64(&kit.owner.signing_pk);
+        kit.owner.encryption_pk = short_b64(&kit.owner.encryption_pk);
+        kit.owner.proof         = short_b64(&kit.owner.proof);
+        kit.owner.markers       = short_markers(&kit.owner.markers);
+
+        println!("\n========== EnrollmentKit (.sesame-id) ==========");
+        println!("{}", serde_json::to_string_pretty(&kit).unwrap());
+
+        // 2) Build a real Attestation through sign_document, then truncate.
+        let pdf = b"pretend PDF bytes";
+        let bio = b"fake-keystore-derived-key-32bytes";
+        let device_ids = b"ANDROID_ID||Build.FINGERPRINT";
+        let tau: u64 = 1_713_000_000;
+        let doc_ref = "DOC-1713000000000";
+        let att_json = sign_document(
+            &sk_blob, pdf, bio, device_ids, tau,
+            &setup_res.markers, doc_ref, &setup_res.signing_pk,
+        ).expect("sign_document");
+        let mut att: Attestation = serde_json::from_str(&att_json).unwrap();
+        att.signer.signing_pk              = short_b64(&att.signer.signing_pk);
+        att.signer.markers                 = short_markers(&att.signer.markers);
+        att.document.doc_hash              = short_b64(&att.document.doc_hash);
+        att.document.original_sender_pk    = short_b64(&att.document.original_sender_pk);
+        att.signature_data.g_sign          = short_b64(&att.signature_data.g_sign);
+        att.signature_data.sigma           = short_b64(&att.signature_data.sigma);
+
+        println!("\n========== Attestation (document signé, v3) ==========");
+        println!("{}", serde_json::to_string_pretty(&att).unwrap());
+    }
+
     /// Pins the ML-DSA-65 detached-signature size produced by
     /// pqcrypto-dilithium 0.5 — the FIPS 204 final value is 3309 bytes.
     /// If this ever drifts to 3293 the crate has regressed to Round 3
