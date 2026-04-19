@@ -1097,7 +1097,7 @@ class MainActivity : FragmentActivity() {
      *  so each page reuses the same ViewHolder that was built for its index. */
     private inner class OnboardingAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<OnboardingAdapter.VH>() {
         inner class VH(v: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(v)
-        override fun getItemCount() = 3
+        override fun getItemCount() = 1
         override fun getItemViewType(position: Int) = position
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
             val v = buildOnboardingPage(viewType).apply {
@@ -1108,6 +1108,8 @@ class MainActivity : FragmentActivity() {
         override fun onBindViewHolder(holder: VH, position: Int) {}
     }
 
+    /** Single-page onboarding — invite the first Sésame. SMS + email are both fired by
+     *  startInviteFlow(), and finishInviteFlow() takes the user straight to HOME. */
     private fun buildOnboardingPage(index: Int): View {
         val scroll = ScrollView(this).apply {
             setBackgroundColor(BG)
@@ -1119,31 +1121,10 @@ class MainActivity : FragmentActivity() {
             setPadding(dp(28), dp(40), dp(28), dp(40))
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         }
-        when (index) {
-            0 -> {
-                body.addView(titleSerif("Partagez votre\nidentité avec\nvos Sésames.", PURPLE))
-                body.addView(onboardingMonoSub("Une seule fois."))
-                body.addView(spacer(24))
-                body.addView(ctaTall("Inviter un Sésame", PURPLE) {
-                    startInviteFlow()
-                })
-            }
-            1 -> {
-                body.addView(titleSerif("Invitez\nvos Sésames.", PURPLE))
-                body.addView(onboardingMonoSub("Une seule fois."))
-                body.addView(spacer(24))
-                body.addView(ctaTall("Scanner un QR code", PURPLE) { launchQrScanner() })
-                body.addView(spacer(10))
-                body.addView(ctaOutline("Ouvrir un .sesame-id") {
-                    importKitLauncher.launch(arrayOf("*/*"))
-                })
-            }
-            2 -> {
-                body.addView(titleSerif("Vous êtes\nprêt.", PURPLE))
-                body.addView(spacer(24))
-                body.addView(ctaTall("Commencer", PURPLE) { completeOnboarding() })
-            }
-        }
+        body.addView(titleSerif("Invitez votre\npremier Sésame.", PURPLE))
+        body.addView(onboardingMonoSub("SMS et email, en une seule fois."))
+        body.addView(spacer(24))
+        body.addView(ctaTall("Inviter un Sésame", PURPLE) { startInviteFlow() })
         scroll.addView(body)
         return scroll
     }
@@ -1307,19 +1288,37 @@ class MainActivity : FragmentActivity() {
         })
 
         val contactCount = loadContacts().length()
+        val inviteCount = prefs().getInt("invite_count", 0)
         if (contactCount > 0) {
             body.addView(ctaTall("Mes Sésames ($contactCount)", PURPLE) {
                 showScreen(Screen.CONTACTS)
             })
             body.addView(spacer(12))
         }
-        body.addView(ctaTall("Inviter un Sésame", PURPLE) {
-            showScreen(Screen.INVITE)
-        })
+        // Primary invite CTA only before the first successful invite — afterwards, a
+        // discreet link at the bottom covers "+ Inviter un autre Sésame".
+        if (inviteCount == 0) {
+            body.addView(ctaTall("Inviter un Sésame", PURPLE) { startInviteFlow() })
+        }
 
         body.addView(View(this).apply {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 0.6f)
         })
+
+        if (inviteCount >= 1) {
+            body.addView(TextView(this).apply {
+                text = "+ Inviter un autre Sésame"
+                typeface = MONO
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                setTextColor(Color.parseColor("#aaa89e"))
+                gravity = Gravity.CENTER
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                isClickable = true; isFocusable = true
+                setOnClickListener { startInviteFlow() }
+                layoutParams = lp().apply { bottomMargin = dp(6) }
+            })
+        }
+
         body.addView(TextView(this).apply {
             text = "Vos documents. Vos Sésames. Personne d'autre."
             typeface = MONO
@@ -1990,7 +1989,7 @@ class MainActivity : FragmentActivity() {
             }
         }
         body.addView(spacer(10))
-        body.addView(ctaOutline("+ Inviter un Sésame") { showScreen(Screen.INVITE) })
+        body.addView(ctaOutline("+ Inviter un Sésame") { startInviteFlow() })
 
         root.addView(body)
         return root
@@ -2133,15 +2132,20 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    /** Terminate the invite chain: toast + navigate to HOME (completing onboarding
-     *  if the flow was started from the onboarding pager). */
+    /** Terminate the invite chain: toast + unconditional navigation to HOME.
+     *  Persists onboarding_done (idempotent) and increments invite_count so HOME
+     *  can demote the primary "Inviter" CTA once the user has invited at least
+     *  once. Never routes back to the INVITE screen or the onboarding pager —
+     *  that caused an apparent loop where users re-invited from "Ouvre-toi !". */
     private fun finishInviteFlow() {
         Toast.makeText(this, "Invitation envoyée ✓", Toast.LENGTH_LONG).show()
-        if (onOnboarding) {
-            completeOnboarding()
-        } else {
-            showScreen(Screen.HOME)
-        }
+        prefs().edit().apply {
+            putBoolean("onboarding_done", true)
+            putInt("invite_count", prefs().getInt("invite_count", 0) + 1)
+        }.apply()
+        onOnboarding = false
+        onboardingPager = null
+        showScreen(Screen.HOME)
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -2196,11 +2200,10 @@ class MainActivity : FragmentActivity() {
         qrSubCard.addView(certRow("Clé tronquée", trunc(spk), PURPLE))
         body.addView(qrSubCard)
 
-        // ── SECTION 3 — Partager mon identité ────────────────────────────
-        body.addView(eyebrow("Partager"))
-        body.addView(spacer(6))
-        body.addView(cta("Envoyer mon identité par email", PURPLE) { shareKitByEmail() })
-        body.addView(spacer(8))
+        // "Partager mon identité" section removed — the unified invite flow
+        // (startInviteFlow) is now the only entry point for sharing identity,
+        // accessible from onboarding and HOME. QR fullscreen stays here as a
+        // display-only helper.
         body.addView(ctaOutline("Afficher mon QR en grand") { showQrFullscreen(kitJson) })
         body.addView(spacer(24))
 
@@ -2262,69 +2265,10 @@ class MainActivity : FragmentActivity() {
         return sdf.format(java.util.Date(millis))
     }
 
-    /** Section 3 primary button — email with .sesame-id attached + detailed body per spec. */
     /** File currently attached to a pending share intent. Deleted on the next onResume —
-     *  we can't delete immediately because the receiving app reads the URI asynchronously. */
+     *  we can't delete immediately because the receiving app reads the URI asynchronously.
+     *  Written by sendInviteEmailWithKit() when the email step of startInviteFlow() fires. */
     private var pendingKitFile: java.io.File? = null
-
-    /** Reads signed_kit_json from prefs, writes it to cacheDir/mon-identite.sesame-id,
-     *  launches a share chooser with that file attached, and schedules deletion when
-     *  the user returns to the app. */
-    private fun shareKitByEmail() {
-        val kitJson = prefs().getString("signed_kit_json", "") ?: ""
-        if (kitJson.isEmpty()) {
-            Toast.makeText(this, "Kit Sésame indisponible — recréez votre identité", Toast.LENGTH_LONG).show()
-            return
-        }
-        val ownerName = try {
-            org.json.JSONObject(kitJson).getJSONObject("owner").optString("name", "").ifEmpty { "—" }
-        } catch (_: Exception) { "—" }
-
-        val body = "Bonjour,\n\n" +
-            "Je vous partage mon identité Sésame.\n\n" +
-            "Sésame est un protocole de signature et\n" +
-            "d'échange de documents entre parties identifiées.\n" +
-            "Aucun document ne transite sur aucun serveur.\n" +
-            "Vos échanges vous appartiennent.\n\n" +
-            "Pour m'ajouter à vos contacts Sésame :\n" +
-            "1. Installez l'app Sésame : https://authentix-sign.tech\n" +
-            "2. Ouvrez le fichier joint — je serai\n" +
-            "   automatiquement ajouté à vos Sésames\n\n" +
-            "Cordialement,\n" +
-            ownerName
-
-        try {
-            val file = java.io.File(cacheDir, "mon-identite.sesame-id")
-            // Drop any stale kit bytes from a previous share to guarantee fresh content.
-            if (file.exists()) file.delete()
-            file.writeText(kitJson, Charsets.UTF_8)
-            if (!file.exists() || file.length() == 0L) {
-                Toast.makeText(this, "Erreur : fichier .sesame-id non écrit", Toast.LENGTH_LONG).show()
-                return
-            }
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                this, "$packageName.fileprovider", file,
-            )
-            android.util.Log.d("SesameShare", "attaching uri=$uri (size=${file.length()} bytes)")
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                // "*/*" is the broadest type email apps accept when they see a file URI.
-                // "application/octet-stream" caused some clients to ignore the attachment.
-                type = "*/*"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Mon identité Sésame — $ownerName")
-                putExtra(Intent.EXTRA_TEXT, body)
-                putExtra(Intent.EXTRA_EMAIL, arrayOf<String>())  // prompt user to fill recipients
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                // Some email apps (Outlook, Samsung Email) look at clipData for attachments.
-                clipData = android.content.ClipData.newRawUri("mon-identite.sesame-id", uri)
-            }
-            pendingKitFile = file
-            startActivity(Intent.createChooser(intent, "Envoyer mon identité par email"))
-        } catch (e: Exception) {
-            android.util.Log.e("SesameShare", "shareKitByEmail failed", e)
-            Toast.makeText(this, "Erreur partage : ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
 
     override fun onResume() {
         super.onResume()
