@@ -1315,17 +1315,32 @@ class MainActivity : FragmentActivity() {
             })
             body.addView(spacer(12))
         }
-        // Primary invite CTA only before the first successful invite — afterwards, a
-        // discreet link at the bottom covers "+ Inviter un autre Sésame".
-        if (inviteCount == 0) {
-            body.addView(ctaTall("Inviter un Sésame", PURPLE) { startInviteFlow() })
+
+        // Primary "Inviter" CTA. Always visible while the user has no contacts —
+        // otherwise the screen looks empty (happens after sending the first
+        // invite, before the invitee has returned their .sesame-id). Once at
+        // least one contact is known, the primary slot belongs to "Mes Sésames"
+        // and the invite action is demoted to a discreet link at the bottom.
+        val primaryInviteLabel = if (inviteCount == 0) "Inviter un Sésame" else "Inviter un autre Sésame"
+        if (contactCount == 0) {
+            body.addView(ctaTall(primaryInviteLabel, PURPLE) { startInviteFlow() })
+            if (inviteCount >= 1) {
+                body.addView(TextView(this).apply {
+                    text = "Invitation envoyée — en attente de votre Sésame."
+                    typeface = MONO
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                    setTextColor(Color.parseColor("#aaa89e"))
+                    gravity = Gravity.CENTER
+                    layoutParams = lp().apply { topMargin = dp(10) }
+                })
+            }
         }
 
         body.addView(View(this).apply {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 0.6f)
         })
 
-        if (inviteCount >= 1) {
+        if (contactCount > 0) {
             body.addView(TextView(this).apply {
                 text = "+ Inviter un autre Sésame"
                 typeface = MONO
