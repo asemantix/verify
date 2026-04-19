@@ -34,9 +34,9 @@ class MainActivity : FragmentActivity() {
     private var onManifesto = false
     private var manifestoFromMyId = false
     private var manifestoPager: androidx.viewpager2.widget.ViewPager2? = null
-    /** Invite flow state: 0 = idle, 1 = SMS fired (waiting for return),
-     *  2 = email fired (waiting for return → HOME + toast). Consumed in onResume. */
-    private var pendingInviteStep = 0
+    /** True once the invite email intent has been fired. onResume consumes it:
+     *  on the next resume we toast "Invitation envoyée" and land on HOME. */
+    private var pendingInviteEmail = false
     private var manifestoPage1Lines: List<View> = emptyList()
     private var manifestoPage2Lines: List<View> = emptyList()
     private var manifestoPage1Animated = false
@@ -2064,71 +2064,69 @@ class MainActivity : FragmentActivity() {
         return root
     }
 
-    /** Chains SMS → Email → HOME. Step 1 fires SMS; onResume detects return and fires
-     *  the email intent; next onResume shows a toast and lands on HOME. */
+    /** Single-gesture invite: fires one email intent with the .sesame-id attached and
+     *  the detailed body. onResume detects the return and calls finishInviteFlow(). */
     private fun startInviteFlow() {
         val kitJson = prefs().getString("signed_kit_json", "") ?: ""
         if (kitJson.isEmpty()) {
             Toast.makeText(this, "Kit Sésame indisponible — recréez votre identité", Toast.LENGTH_LONG).show()
             return
         }
-        pendingInviteStep = 1
-        sendInviteSms()
-    }
+        val ownerName = try {
+            org.json.JSONObject(kitJson).getJSONObject("owner").optString("name", "").ifEmpty { "—" }
+        } catch (_: Exception) { "—" }
+        val firstName = ownerName.trim().split(Regex("\\s+")).firstOrNull()?.takeIf { it.isNotEmpty() } ?: ownerName
 
-    private fun sendInviteSms() {
-        val body = "Installez Sésame :\n" +
-            "- Site web : https://authentix-sign.tech\n" +
-            "- Google Play : https://play.google.com/store/apps/details?id=app.authentixsign\n" +
-            "Ouvrez ensuite le fichier que je vous envoie\n" +
-            "par email pour m'ajouter à vos Sésames."
-        try {
-            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                data = android.net.Uri.parse("smsto:")
-                putExtra("sms_body", body)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            // No SMS app — skip straight to the email step so the flow can still complete.
-            Toast.makeText(this, "Aucune app SMS — envoi par email uniquement", Toast.LENGTH_SHORT).show()
-            pendingInviteStep = 2
-            container.post { sendInviteEmailWithKit() }
-        }
-    }
+        // Filesystem-safe filename: spaces → "-", strip anything else non-alphanumeric.
+        val fileStem = ownerName.trim()
+            .replace(Regex("\\s+"), "-")
+            .replace(Regex("[^A-Za-zÀ-ÖØ-öø-ÿ0-9-]"), "")
+            .ifEmpty { "sesame" }
+        val attachmentName = "$fileStem-identite.sesame-id"
 
-    private fun sendInviteEmailWithKit() {
-        val kitJson = prefs().getString("signed_kit_json", "") ?: ""
-        if (kitJson.isEmpty()) {
-            Toast.makeText(this, "Kit Sésame indisponible", Toast.LENGTH_LONG).show()
-            pendingInviteStep = 0
-            return
-        }
+        val body = "Bonjour,\n\n" +
+            "$firstName vous invite à rejoindre Sésame.\n\n" +
+            "Sésame est un protocole de signature et d'échange\n" +
+            "de documents entre parties identifiées.\n" +
+            "Vos échanges sont chiffrés. Aucun document\n" +
+            "ne transite sur aucun serveur.\n" +
+            "Vos documents vous appartiennent.\n\n" +
+            "Pour nous connecter sur Sésame :\n\n" +
+            "1. Installez l'application\n" +
+            "   → https://authentix-sign.tech\n" +
+            "   → Google Play : https://play.google.com/store/apps/details?id=app.authentixsign\n\n" +
+            "2. Ouvrez le fichier joint\n" +
+            "   → Je serai automatiquement ajouté\n" +
+            "     à vos Sésames\n\n" +
+            "Innovation brevetée 2026 · AION ASEMANTIX"
+
         try {
-            val file = java.io.File(cacheDir, "mon-identite.sesame-id")
+            val file = java.io.File(cacheDir, attachmentName)
             if (file.exists()) file.delete()
             file.writeText(kitJson, Charsets.UTF_8)
+            if (!file.exists() || file.length() == 0L) {
+                Toast.makeText(this, "Erreur : fichier .sesame-id non écrit", Toast.LENGTH_LONG).show()
+                return
+            }
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 this, "$packageName.fileprovider", file,
             )
-            val body = "Pour m'ajouter à tes contacts Sésame :\n" +
-                "1. Installe l'app : https://authentix-sign.tech\n" +
-                "2. Ouvre le fichier joint — je serai\n" +
-                "   automatiquement ajouté à tes Sésames."
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "*/*"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Rejoins-moi sur Sésame")
+                putExtra(Intent.EXTRA_SUBJECT, "Votre identité Sésame — $ownerName")
                 putExtra(Intent.EXTRA_TEXT, body)
                 putExtra(Intent.EXTRA_EMAIL, arrayOf<String>())
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                clipData = android.content.ClipData.newRawUri("mon-identite.sesame-id", uri)
+                clipData = android.content.ClipData.newRawUri(attachmentName, uri)
             }
             pendingKitFile = file
-            startActivity(Intent.createChooser(intent, "Inviter par email"))
+            pendingInviteEmail = true
+            startActivity(Intent.createChooser(intent, "Inviter un Sésame"))
         } catch (e: Exception) {
-            android.util.Log.e("SesameShare", "sendInviteEmailWithKit failed", e)
+            android.util.Log.e("SesameShare", "startInviteFlow failed", e)
             Toast.makeText(this, "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
-            pendingInviteStep = 0
+            pendingInviteEmail = false
         }
     }
 
@@ -2267,7 +2265,7 @@ class MainActivity : FragmentActivity() {
 
     /** File currently attached to a pending share intent. Deleted on the next onResume —
      *  we can't delete immediately because the receiving app reads the URI asynchronously.
-     *  Written by sendInviteEmailWithKit() when the email step of startInviteFlow() fires. */
+     *  Written by startInviteFlow() when the invite email intent is fired. */
     private var pendingKitFile: java.io.File? = null
 
     override fun onResume() {
@@ -2279,16 +2277,10 @@ class MainActivity : FragmentActivity() {
             try { if (f.exists()) f.delete() } catch (_: Exception) {}
             pendingKitFile = null
         }
-        // Chain the invite flow: SMS returned → fire email; email returned → HOME.
-        when (pendingInviteStep) {
-            1 -> {
-                pendingInviteStep = 2
-                container.post { sendInviteEmailWithKit() }
-            }
-            2 -> {
-                pendingInviteStep = 0
-                finishInviteFlow()
-            }
+        // Return from the single invite email intent → finish the flow.
+        if (pendingInviteEmail) {
+            pendingInviteEmail = false
+            finishInviteFlow()
         }
     }
 
