@@ -1308,51 +1308,31 @@ class MainActivity : FragmentActivity() {
         })
 
         val contactCount = loadContacts().length()
-        val inviteCount = prefs().getInt("invite_count", 0)
         if (contactCount > 0) {
             body.addView(ctaTall("Mes Sésames ($contactCount)", PURPLE) {
                 showScreen(Screen.CONTACTS)
             })
-            body.addView(spacer(12))
-        }
-
-        // Primary "Inviter" CTA. Always visible while the user has no contacts —
-        // otherwise the screen looks empty (happens after sending the first
-        // invite, before the invitee has returned their .sesame-id). Once at
-        // least one contact is known, the primary slot belongs to "Mes Sésames"
-        // and the invite action is demoted to a discreet link at the bottom.
-        val primaryInviteLabel = if (inviteCount == 0) "Inviter un Sésame" else "Inviter un autre Sésame"
-        if (contactCount == 0) {
-            body.addView(ctaTall(primaryInviteLabel, PURPLE) { startInviteFlow() })
-            if (inviteCount >= 1) {
-                body.addView(TextView(this).apply {
-                    text = "Invitation envoyée — en attente de votre Sésame."
-                    typeface = MONO
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                    setTextColor(Color.parseColor("#aaa89e"))
-                    gravity = Gravity.CENTER
-                    layoutParams = lp().apply { topMargin = dp(10) }
-                })
-            }
         }
 
         body.addView(View(this).apply {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 0.6f)
         })
 
-        if (contactCount > 0) {
-            body.addView(TextView(this).apply {
-                text = "+ Inviter un autre Sésame"
-                typeface = MONO
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                setTextColor(Color.parseColor("#aaa89e"))
-                gravity = Gravity.CENTER
-                setPadding(dp(12), dp(8), dp(12), dp(8))
-                isClickable = true; isFocusable = true
-                setOnClickListener { startInviteFlow() }
-                layoutParams = lp().apply { bottomMargin = dp(6) }
-            })
-        }
+        // Always-and-only a discreet "+ Inviter un Sésame" link at the bottom.
+        // No primary invite CTA on HOME — the primary invite happens once
+        // during onboarding, and any re-invitation is a deliberate choice via
+        // this small link, never pushed by a loud button.
+        body.addView(TextView(this).apply {
+            text = "+ Inviter un Sésame"
+            typeface = MONO
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(Color.parseColor("#aaa89e"))
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            isClickable = true; isFocusable = true
+            setOnClickListener { startInviteFlow() }
+            layoutParams = lp().apply { bottomMargin = dp(6) }
+        })
 
         body.addView(TextView(this).apply {
             text = "Vos documents. Vos Sésames. Personne d'autre."
@@ -2193,19 +2173,14 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    /** Terminate the invite chain: toast + unconditional navigation to HOME.
-     *  Persists onboarding_done (idempotent) and increments invite_count so HOME
-     *  can demote the primary "Inviter" CTA once the user has invited at least
-     *  once. Never routes back to the INVITE screen or the onboarding pager —
-     *  that caused an apparent loop where users re-invited from "Ouvre-toi !". */
+    /** Terminate the invite: short toast + HOME. Period.
+     *  The only side effect is persisting onboarding_done so that a user
+     *  who invited during onboarding isn't re-shown the onboarding page at
+     *  next launch — this write is invisible to the user. showScreen(HOME)
+     *  already clears onOnboarding/onboardingPager, so no explicit resets. */
     private fun finishInviteFlow() {
-        Toast.makeText(this, "Invitation envoyée ✓", Toast.LENGTH_LONG).show()
-        prefs().edit().apply {
-            putBoolean("onboarding_done", true)
-            putInt("invite_count", prefs().getInt("invite_count", 0) + 1)
-        }.apply()
-        onOnboarding = false
-        onboardingPager = null
+        prefs().edit().putBoolean("onboarding_done", true).apply()
+        Toast.makeText(this, "Invitation envoyée ✓", Toast.LENGTH_SHORT).show()
         showScreen(Screen.HOME)
     }
 
