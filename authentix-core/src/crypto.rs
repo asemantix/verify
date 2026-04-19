@@ -451,6 +451,60 @@ mod tests {
         assert_eq!(enc_sk.len(), 2400);
     }
 
+    // ────────────────────────────────────────────────────────────────────
+    //  KAT — Known-Answer-Tests for tagged_hash + HKDF-SHA3-256
+    //  Shared vectors with the SDK Rust for cross-implementation interop.
+    // ────────────────────────────────────────────────────────────────────
+
+    /// Domain-separated hash:
+    ///   SHA3-256( tag || 0x00 || LE(len p0) || p0 || LE(len p1) || p1 || ... )
+    fn tagged_hash(tag: &[u8], parts: &[&[u8]]) -> [u8; 32] {
+        let mut h = Sha3_256::new();
+        h.update(tag);
+        h.update(&[0x00u8]);
+        for p in parts {
+            h.update(&(p.len() as u64).to_le_bytes());
+            h.update(p);
+        }
+        h.finalize().into()
+    }
+
+    fn hex32(bytes: &[u8; 32]) -> String {
+        let mut s = String::with_capacity(64);
+        for b in bytes.iter() {
+            s.push_str(&format!("{:02x}", b));
+        }
+        s
+    }
+
+    /// SDK-shared KAT set for the cross-implementation tagged_hash +
+    /// HKDF-SHA3-256 primitives. Uses the spec-as-written formula:
+    ///   SHA3-256( tag || 0x00 || LE(|p_i|) || p_i ... )
+    #[test]
+    fn kat_tagged_hash_and_hkdf_sha3_256() {
+        const TAG_FP:        &[u8] = b"authentix/v2/fingerprint";
+        const TAG_SEED_BIND: &[u8] = b"authentix/v2/seed-bind";
+        const TAG_KEYDERIV:  &[u8] = b"authentix/v2/seed-keyderiv";
+        const TAG_G_SIGN:    &[u8] = b"authentix/v2/g-sign";
+
+        let ikm  = b"authentix-pq-test-ikm";
+        let salt = b"authentix-pq-test-salt";
+
+        let k1 = hex32(&tagged_hash(TAG_FP,        &[b"id-device-001", b"id-session-42"]));
+        let k2 = hex32(&tagged_hash(TAG_SEED_BIND, &[b"T-fixed",       b"id-device-001"]));
+        let k3 = hex32(&tagged_hash(TAG_G_SIGN,    &[b"pk-bytes-demo"]));
+        let k4 = hex32(&tagged_hash(TAG_KEYDERIV,  &[b"pk-bytes-demo"]));
+        let k5 = hex32(&hkdf_derive(ikm, salt, b"master"));
+        let k6 = hex32(&hkdf_derive(ikm, salt, b"kem"));
+
+        println!("KAT 1 (FP)          = {}", k1);
+        println!("KAT 2 (SEED_BIND)   = {}", k2);
+        println!("KAT 3 (G_SIGN)      = {}", k3);
+        println!("KAT 4 (KEYDERIV)    = {}", k4);
+        println!("KAT 5 (HKDF master) = {}", k5);
+        println!("KAT 6 (HKDF kem)    = {}", k6);
+    }
+
     /// Pins the ML-DSA-65 detached-signature size produced by
     /// pqcrypto-dilithium 0.5 — the FIPS 204 final value is 3309 bytes.
     /// If this ever drifts to 3293 the crate has regressed to Round 3
