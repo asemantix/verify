@@ -2088,33 +2088,44 @@ class MainActivity : FragmentActivity() {
             Toast.makeText(this, "Kit Sésame indisponible — recréez votre identité", Toast.LENGTH_LONG).show()
             return
         }
-        val ownerName = try {
-            org.json.JSONObject(kitJson).getJSONObject("owner").optString("name", "").ifEmpty { "—" }
-        } catch (_: Exception) { "—" }
-        val firstName = ownerName.trim().split(Regex("\\s+")).firstOrNull()?.takeIf { it.isNotEmpty() } ?: ownerName
+        // The kit currently stores "<Manufacturer> <Model>" as owner.name (set at setup
+        // time) because we don't yet collect a human name during onboarding. For the
+        // invite email we treat that device-name fallback as "no real name yet" and
+        // use the neutral "Votre contact" instead.
+        val rawName = try {
+            org.json.JSONObject(kitJson).getJSONObject("owner").optString("name", "")
+        } catch (_: Exception) { "" }
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+        val hasRealName = rawName.isNotBlank()
+            && !rawName.trim().equals(deviceName, ignoreCase = true)
+        val senderDisplay = if (hasRealName) rawName.trim() else "Votre contact"
 
-        // Filesystem-safe filename: spaces → "-", strip anything else non-alphanumeric.
-        val fileStem = ownerName.trim()
-            .replace(Regex("\\s+"), "-")
-            .replace(Regex("[^A-Za-zÀ-ÖØ-öø-ÿ0-9-]"), "")
-            .ifEmpty { "sesame" }
-        val attachmentName = "$fileStem-identite.sesame-id"
+        // Attachment filename: "<Nom>-identite.sesame-id" when a real name is set,
+        // plain "identite.sesame-id" otherwise. Filesystem-safe: spaces → hyphens,
+        // strip anything non-alphanumeric (keep Latin-1 accents).
+        val attachmentName = if (hasRealName) {
+            val stem = rawName.trim()
+                .replace(Regex("\\s+"), "-")
+                .replace(Regex("[^A-Za-zÀ-ÖØ-öø-ÿ0-9-]"), "")
+                .ifEmpty { "identite" }
+            "$stem-identite.sesame-id"
+        } else {
+            "identite.sesame-id"
+        }
 
-        val body = "Bonjour,\n\n" +
-            "$firstName vous invite à rejoindre Sésame.\n\n" +
-            "Sésame est un protocole de signature et d'échange\n" +
-            "de documents entre parties identifiées.\n" +
-            "Vos échanges sont chiffrés. Aucun document\n" +
-            "ne transite sur aucun serveur.\n" +
-            "Vos documents vous appartiennent.\n\n" +
-            "Pour nous connecter sur Sésame :\n\n" +
-            "1. Installez l'application\n" +
-            "   → https://authentix-sign.tech\n" +
-            "   → Google Play : https://play.google.com/store/apps/details?id=app.authentixsign\n\n" +
-            "2. Ouvrez le fichier joint\n" +
-            "   → Je serai automatiquement ajouté\n" +
-            "     à vos Sésames\n\n" +
-            "Innovation brevetée 2026 · AION ASEMANTIX"
+        // One line per paragraph — no forced \n inside paragraphs. Empty lines
+        // between paragraphs. Mail clients reflow each paragraph to fit width.
+        val body = buildString {
+            append("Bonjour,\n\n")
+            append("$senderDisplay vous invite à rejoindre Sésame.\n\n")
+            append("Sésame est un protocole de signature et d'échange de documents entre parties identifiées, sans serveur. Vos documents sont chiffrés et rendus asémantiques avant d'être transmis — illisibles pour quiconque sauf votre destinataire.\n\n")
+            append("Pour vous connecter sur Sésame :\n\n")
+            append("1. Installez l'application :\n")
+            append("https://authentix-sign.tech\n")
+            append("https://play.google.com/store/apps/details?id=app.authentixsign\n\n")
+            append("2. Ouvrez le fichier joint — votre contact sera automatiquement ajouté à vos Sésames.\n\n")
+            append("Innovation brevetée 2026 · AION ASEMANTIX")
+        }
 
         try {
             val file = java.io.File(cacheDir, attachmentName)
@@ -2130,7 +2141,7 @@ class MainActivity : FragmentActivity() {
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "*/*"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Votre identité Sésame — $ownerName")
+                putExtra(Intent.EXTRA_SUBJECT, "Rejoignez-moi sur Sésame")
                 putExtra(Intent.EXTRA_TEXT, body)
                 putExtra(Intent.EXTRA_EMAIL, arrayOf<String>())
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
