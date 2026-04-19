@@ -744,7 +744,7 @@ class MainActivity : FragmentActivity() {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
         }
 
-        // Page 1 displays a SÉSAME wordmark (72sp PURPLE) instead of the ic_launcher;
+        // Page 1 displays a SÉSAME wordmark (40sp PURPLE) instead of the ic_launcher;
         // page 2 keeps the ic_launcher as a discreet decor element.
         if (index == 1) {
             frame.addView(android.widget.ImageView(this).apply {
@@ -774,14 +774,18 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun buildManifestoPage1Content(frame: LinearLayout, lines: MutableList<View>, textColor: Int) {
-        // Wordmark — SÉSAME 52sp PURPLE, dominant element at the top
+        // Wordmark — SÉSAME 40sp PURPLE, single line inside the dark frame
+        // (32dp padding each side). maxLines=1 + autoSizeTextType guarantees
+        // no wrap on narrow devices.
         val wordmark = TextView(this).apply {
             text = "SÉSAME"
             typeface = SERIF_B
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 52f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f)
             setTextColor(PURPLE)
             gravity = Gravity.CENTER
             letterSpacing = 0.04f
+            maxLines = 1
+            isSingleLine = true
             layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(18) }
         }
         frame.addView(wordmark); lines.add(wordmark)
@@ -817,7 +821,7 @@ class MainActivity : FragmentActivity() {
         })
 
         val problemLines = listOf(
-            "une adresse email.",
+            "Une adresse email.",
             "Un lien cliquable.",
             "Des documents qui voyagent en clair.",
             "Stockés sur des serveurs",
