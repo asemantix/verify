@@ -744,18 +744,21 @@ class MainActivity : FragmentActivity() {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
         }
 
-        // Icon + separator (decor — always visible)
-        frame.addView(android.widget.ImageView(this).apply {
-            setImageResource(R.mipmap.ic_launcher)
-            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-                bottomMargin = dp(14)
-            }
-        })
-        frame.addView(View(this).apply {
-            setBackgroundColor(Color.argb(51, 0x66, 0x55, 0xc0))  // PURPLE 20%
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 1).apply { bottomMargin = dp(18) }
-        })
+        // Page 1 displays a SÉSAME wordmark (72sp PURPLE) instead of the ic_launcher;
+        // page 2 keeps the ic_launcher as a discreet decor element.
+        if (index == 1) {
+            frame.addView(android.widget.ImageView(this).apply {
+                setImageResource(R.mipmap.ic_launcher)
+                layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    bottomMargin = dp(14)
+                }
+            })
+            frame.addView(View(this).apply {
+                setBackgroundColor(Color.argb(51, 0x66, 0x55, 0xc0))  // PURPLE 20%
+                layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 1).apply { bottomMargin = dp(18) }
+            })
+        }
 
         val lines = mutableListOf<View>()
         if (index == 0) buildManifestoPage1Content(frame, lines, textColor)
@@ -771,23 +774,36 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun buildManifestoPage1Content(frame: LinearLayout, lines: MutableList<View>, textColor: Int) {
-        // Title — Cormorant italic 16sp #6655c0 at 0.7 opacity
+        // Wordmark — SÉSAME 72sp PURPLE, dominant element at the top
+        val wordmark = TextView(this).apply {
+            text = "SÉSAME"
+            typeface = SERIF_B
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 72f)
+            setTextColor(PURPLE)
+            gravity = Gravity.CENTER
+            letterSpacing = 0.04f
+            layoutParams = lp().apply { topMargin = dp(4); bottomMargin = dp(18) }
+        }
+        frame.addView(wordmark); lines.add(wordmark)
+
+        // Title — Cormorant italic 22sp, solid #f5f4f0 (dominant secondary)
         val title = TextView(this).apply {
             text = "Contrairement aux autres acteurs du marché —"
             typeface = Typeface.create(SERIF_B, Typeface.ITALIC)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            setTextColor(Color.argb(179, 0x66, 0x55, 0xc0))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+            setTextColor(Color.parseColor("#f5f4f0"))
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.25f)
-            layoutParams = lp().apply { bottomMargin = dp(6) }
+            layoutParams = lp().apply { bottomMargin = dp(8) }
         }
         frame.addView(title); lines.add(title)
 
+        // Competitors — Mono 12sp italic, solid white at 0.9 opacity
         val competitors = TextView(this).apply {
             text = "DocuSign · Adobe Sign · HelloSign · Yousign · et leurs pairs"
             typeface = Typeface.create(MONO, Typeface.ITALIC)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            setTextColor(Color.argb(128, 0xaa, 0xa8, 0x9e))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTextColor(Color.argb(230, 0xff, 0xff, 0xff))
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.3f)
             layoutParams = lp().apply { bottomMargin = dp(14) }
