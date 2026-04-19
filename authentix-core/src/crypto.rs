@@ -17,8 +17,8 @@ use sha3::{Digest, Sha3_256};
 
 use crate::types::*;
 
-const SALT_MASTER: &[u8] = b"SESAME-SIGN-v2-PQ";
-const SALT_KEM: &[u8] = b"SESAME-KEM-v2";
+const SALT_MASTER: &[u8] = b"SESAME-SIGN-v3-PQ";
+const SALT_KEM: &[u8] = b"SESAME-KEM-v3";
 const INFO_SEED: &[u8] = b"master-seed";
 const INFO_AES: &[u8] = b"aes-256-gcm-key";
 const INFO_DOC_SIG: &[u8] = b"document-signature";
@@ -256,7 +256,7 @@ pub fn sign_document(
     let signing_pk_b64 = B64.encode(pk_bytes);
 
     let attestation = Attestation {
-        version: 2,
+        version: 3,
         doc_type: "attestation".into(),
         signer: AttestationSigner {
             signing_pk: signing_pk_b64,
@@ -270,8 +270,9 @@ pub fn sign_document(
         signature_data: SignatureData {
             g_sign: B64.encode(g_sign),
             sigma: B64.encode(sigma.as_bytes()),
-            timestamp: tau,
+            counter: tau,
             bio_method: "fingerprint".into(),
+            tau_tute: None,
         },
         created: chrono_now(),
     };
@@ -308,7 +309,7 @@ pub fn verify(attestation_json: &str, pdf: Option<&[u8]>) -> Result<VerifyResult
     let sigma_bytes = B64
         .decode(&att.signature_data.sigma)
         .map_err(|e| e.to_string())?;
-    let tau = att.signature_data.timestamp;
+    let tau = att.signature_data.counter;
 
     let mut message = Vec::new();
     message.extend_from_slice(&doc_hash);
@@ -368,7 +369,7 @@ pub fn build_kit(
     let proof_sig = dilithium3::detached_sign(&sha3(&proof_input), &signing_sk);
 
     let kit = EnrollmentKit {
-        version: 2,
+        version: 3,
         doc_type: "identity".into(),
         owner: KitOwner {
             name: name.into(),

@@ -54,8 +54,12 @@ pub struct AttestationDocument {
 pub struct SignatureData {
     pub g_sign: String,
     pub sigma: String,
-    pub timestamp: u64,
+    pub counter: u64,
     pub bio_method: String,
+    /// Phase 2 — TUTE physical/energy monotonic metric, gated behind the
+    /// `phiproof-tau` feature in the SDK Rust. None for Phase 1 attestations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tau_tute: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

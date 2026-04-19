@@ -1880,7 +1880,7 @@ class MainActivity : FragmentActivity() {
                     val myPk = prefs().getString("signing_pk", "") ?: ""
                     val envType = if (mode == "signature") "document" else "document_readonly"
                     val envelope = org.json.JSONObject().apply {
-                        put("version", 2)
+                        put("version", 3)
                         put("type", envType)
                         put("payload", org.json.JSONObject(payloadJson))
                         put("sender", org.json.JSONObject().apply {
