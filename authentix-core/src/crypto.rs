@@ -451,6 +451,24 @@ mod tests {
         assert_eq!(enc_sk.len(), 2400);
     }
 
+    /// Pins the ML-DSA-65 detached-signature size produced by
+    /// pqcrypto-dilithium 0.5 — the FIPS 204 final value is 3309 bytes.
+    /// If this ever drifts to 3293 the crate has regressed to Round 3
+    /// pre-standard parameters and interop breaks.
+    #[test]
+    fn test_ml_dsa_65_signature_is_3309_bytes_fips204() {
+        let (pk, sk) = dilithium3::keypair();
+        let msg = b"test message for ML-DSA-65 size assertion";
+        let sig = dilithium3::detached_sign(msg, &sk);
+        assert_eq!(
+            sig.as_bytes().len(),
+            3309,
+            "ML-DSA-65 signature must be 3309 bytes (FIPS 204 final), \
+             not 3293 (Round 3). Upgrade pqcrypto-dilithium if this fails."
+        );
+        assert_eq!(pk.as_bytes().len(), 1952, "ML-DSA-65 pk must be 1952 bytes");
+    }
+
     #[test]
     fn test_setup_keys_are_random() {
         // ML-DSA/ML-KEM use random keypair generation (not deterministic from seed).
