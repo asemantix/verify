@@ -34,9 +34,6 @@ class MainActivity : FragmentActivity() {
     private var onManifesto = false
     private var manifestoFromMyId = false
     private var manifestoPager: androidx.viewpager2.widget.ViewPager2? = null
-    /** True once the invite email intent has been fired. onResume consumes it:
-     *  on the next resume we toast "Invitation envoyée" and land on HOME. */
-    private var pendingInviteEmail = false
     private var manifestoPage1Lines: List<View> = emptyList()
     private var manifestoPage2Lines: List<View> = emptyList()
     private var manifestoPage1Animated = false
@@ -2156,28 +2153,35 @@ class MainActivity : FragmentActivity() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 clipData = android.content.ClipData.newRawUri(attachmentName, uri)
             }
-            pendingInviteEmail = true
             try {
                 startActivity(Intent.createChooser(intent, "Inviter un Sésame"))
             } catch (e: android.content.ActivityNotFoundException) {
-                // No mail/share app available — don't strand the user.
-                pendingInviteEmail = false
                 Toast.makeText(this, "Aucune app mail disponible — réessayez plus tard", Toast.LENGTH_LONG).show()
                 showScreen(Screen.HOME)
+                return
             }
+            // Navigate to HOME immediately after firing the chooser — the chooser
+            // and the mail app sit on top of HOME, so when the user returns
+            // by ANY path (back, save-draft, task-switcher, kill the mail app,
+            // whatever) they always land on HOME. No dependency on onResume
+            // firing, which it may not if the user saves a draft and stays
+            // inside Gmail.
+            android.util.Log.d("SESAME_NAV", "startInviteFlow: chooser fired → navigating HOME")
+            prefs().edit().putBoolean("onboarding_done", true).apply()
+            Toast.makeText(this, "Invitation envoyée ✓", Toast.LENGTH_SHORT).show()
+            showScreen(Screen.HOME)
         } catch (e: Exception) {
             android.util.Log.e("SesameShare", "startInviteFlow failed", e)
             Toast.makeText(this, "Erreur d'envoi : ${e.message} — retour à l'accueil", Toast.LENGTH_LONG).show()
-            pendingInviteEmail = false
             showScreen(Screen.HOME)
         }
     }
 
-    /** Terminate the invite: short toast + HOME. Period.
-     *  The only side effect is persisting onboarding_done so that a user
-     *  who invited during onboarding isn't re-shown the onboarding page at
-     *  next launch — this write is invisible to the user. showScreen(HOME)
-     *  already clears onOnboarding/onboardingPager, so no explicit resets. */
+    // finishInviteFlow() is no longer used — startInviteFlow() now navigates
+    // to HOME synchronously right after firing the chooser (see SESAME_NAV
+    // log), so there's no onResume handoff. Kept here as a trivial shim for
+    // any stray caller; safe to delete on next cleanup pass.
+    @Suppress("unused")
     private fun finishInviteFlow() {
         prefs().edit().putBoolean("onboarding_done", true).apply()
         Toast.makeText(this, "Invitation envoyée ✓", Toast.LENGTH_SHORT).show()
@@ -2303,19 +2307,16 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // The activity is NOT recreated when an external Intent (email chooser)
-        // returns — all activity state is preserved.
+        // The activity is NOT recreated when an external Intent returns — all
+        // activity state is preserved. We intentionally do NOT delete the
+        // .sesame-id cache file here: the chooser dismissal resumes MainActivity
+        // BEFORE the mail app has read the URI (Gmail reads it lazily when the
+        // user taps Send). Stale files are cleaned at the *start* of the next
+        // startInviteFlow() call instead.
         //
-        // We intentionally do NOT delete the .sesame-id cache file here: the
-        // chooser dismissal resumes MainActivity BEFORE the mail app has read
-        // the URI (Gmail reads it lazily when the user taps Send). Deleting
-        // here left the mail app pointing at a ghost URI and showing
-        // "le fichier n'a pas pu être joint". Stale files are cleaned at the
-        // *start* of the next startInviteFlow() call instead.
-        if (pendingInviteEmail) {
-            pendingInviteEmail = false
-            finishInviteFlow()
-        }
+        // Invite navigation is NOT driven from here anymore — startInviteFlow()
+        // transitions to HOME synchronously right after firing the chooser.
+        // That covers the save-draft case where the user never returns to us.
     }
 
     private fun fallbackUnsignedKit(spk: String, epk: String): String {
