@@ -480,6 +480,7 @@ mod tests {
     /// SDK-shared KAT set for the cross-implementation tagged_hash +
     /// HKDF-SHA3-256 primitives. Uses the spec-as-written formula:
     ///   SHA3-256( tag || 0x00 || LE(|p_i|) || p_i ... )
+    /// Vectors aligned with the SDK Rust on 2026-04-19.
     #[test]
     fn kat_tagged_hash_and_hkdf_sha3_256() {
         const TAG_FP:        &[u8] = b"authentix/v2/fingerprint";
@@ -503,6 +504,13 @@ mod tests {
         println!("KAT 4 (KEYDERIV)    = {}", k4);
         println!("KAT 5 (HKDF master) = {}", k5);
         println!("KAT 6 (HKDF kem)    = {}", k6);
+
+        assert_eq!(k1, "00136211a380b01d04b993f87170edf0ba1a2ef55063385811b923048a9042af");
+        assert_eq!(k2, "e2bde94b1d960b82bb4353a269540c1ee212529b551d2e2409875d4005535f7d");
+        assert_eq!(k3, "72c905ff62d787742b69cb1b1abd4699b440bcf3633022d18958ba066f5078fa");
+        assert_eq!(k4, "e9d6dc49f4494361d88a75530169694d932e68c461ccc5af1e929bcd0cf562c0");
+        assert_eq!(k5, "328925d4af41b43fe228e07c58bd2050f1600381a684ed0a932603eb76defd62");
+        assert_eq!(k6, "78e2e085f166f8507912ec08980fd78d50a0bb38fc81806045a989f323df2952");
     }
 
     /// Pins the ML-DSA-65 detached-signature size produced by
