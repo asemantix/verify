@@ -927,7 +927,7 @@ class MainActivity : FragmentActivity() {
         }
 
         val bodyHead = listOf(
-            "Sésame instaure un nouveau protocole mondial",
+            "Sésame instaure un nouveau protocole",
             "d'échanges et de signatures de documents",
             "entre parties identifiées.",
             "",
